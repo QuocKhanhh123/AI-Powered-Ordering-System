@@ -5,12 +5,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import authService from "@/lib/authService"
+import { toast } from "sonner"
 
 export default function RegisterForm() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState({})
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -22,25 +26,107 @@ export default function RegisterForm() {
     subscribeNewsletter: false,
   })
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const validateForm = () => {
+    const newErrors = {}
 
-    if (formData.password !== formData.confirmPassword) {
-      alert("Mật khẩu xác nhận không khớp!")
-      return
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = "Email là bắt buộc"
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email không hợp lệ"
     }
 
+    // Validate phone
+    if (!formData.phone) {
+      newErrors.phone = "Số điện thoại là bắt buộc"
+    } else if (!/^[0-9]{10}$/.test(formData.phone)) {
+      newErrors.phone = "Số điện thoại phải có 10 chữ số"
+    }
+
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = "Mật khẩu là bắt buộc"
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự"
+    }
+
+    // Validate confirm password
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Mật khẩu xác nhận không khớp"
+    }
+
+    // Validate name
+    if (!formData.firstName || !formData.lastName) {
+      newErrors.name = "Họ và tên là bắt buộc"
+    }
+
+    // Validate terms
     if (!formData.agreeToTerms) {
-      alert("Vui lòng đồng ý với điều khoản dịch vụ!")
+      newErrors.terms = "Bạn phải đồng ý với điều khoản dịch vụ"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    // Validate form
+    if (!validateForm()) {
+      toast.error("Vui lòng kiểm tra lại thông tin đăng ký!")
       return
     }
 
     setIsLoading(true)
+    setErrors({})
 
-    setTimeout(() => {
+    try {
+      // Prepare data for API (matching the API structure)
+      const userData = {
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        password: formData.password,
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+      }
+
+      // Call register API
+      const response = await authService.register(userData)
+
+      // Show success message
+      toast.success(response.message || "Đăng ký thành công!", {
+        description: "Chuyển hướng đến trang đăng nhập..."
+      })
+
+      // Navigate to login page after 1.5 seconds
+      setTimeout(() => {
+        navigate("/login")
+      }, 1500)
+
+    } catch (error) {
+      console.error("Registration error:", error)
+
+      // Handle different error cases
+      if (error.status === 400) {
+        toast.error("Lỗi đăng ký", {
+          description: error.message || "Thông tin đăng ký không hợp lệ"
+        })
+      } else if (error.status === 409) {
+        toast.error("Email đã tồn tại", {
+          description: "Email này đã được đăng ký. Vui lòng sử dụng email khác."
+        })
+      } else if (error.status === 0) {
+        toast.error("Lỗi kết nối", {
+          description: error.message
+        })
+      } else {
+        toast.error("Đăng ký thất bại", {
+          description: error.message || "Có lỗi xảy ra. Vui lòng thử lại sau."
+        })
+      }
+    } finally {
       setIsLoading(false)
-      window.location.href = "/login"
-    }, 2000)
+    }
   }
 
   const handleInputChange = (field, value) => {
@@ -103,10 +189,13 @@ export default function RegisterForm() {
                       placeholder="Nhập email của bạn"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="pl-10"
+                      className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
                       required
                     />
                   </div>
+                  {errors.email && (
+                    <p className="text-xs text-red-500">{errors.email}</p>
+                  )}
                 </div>
 
                 {/* Phone */}
@@ -120,10 +209,13 @@ export default function RegisterForm() {
                       placeholder="Nhập số điện thoại"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className="pl-10"
+                      className={`pl-10 ${errors.phone ? 'border-red-500' : ''}`}
                       required
                     />
                   </div>
+                  {errors.phone && (
+                    <p className="text-xs text-red-500">{errors.phone}</p>
+                  )}
                 </div>
 
                 {/* Password */}
@@ -137,7 +229,7 @@ export default function RegisterForm() {
                       placeholder="Nhập mật khẩu"
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
-                      className="pl-10 pr-10"
+                      className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
                       required
                     />
                     <Button
@@ -150,7 +242,11 @@ export default function RegisterForm() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 8 ký tự</p>
+                  {errors.password ? (
+                    <p className="text-xs text-red-500">{errors.password}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 6 ký tự</p>
+                  )}
                 </div>
 
                 {/* Confirm Password */}
@@ -164,7 +260,7 @@ export default function RegisterForm() {
                       placeholder="Nhập lại mật khẩu"
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="pl-10 pr-10"
+                      className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-red-500' : ''}`}
                       required
                     />
                     <Button
@@ -177,6 +273,9 @@ export default function RegisterForm() {
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
+                  {errors.confirmPassword && (
+                    <p className="text-xs text-red-500">{errors.confirmPassword}</p>
+                  )}
                 </div>
 
                 {/* Terms & Newsletter */}

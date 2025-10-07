@@ -1,14 +1,14 @@
 import { Navigate } from "react-router-dom";
-import { getUser } from "../utils/auth";
+import authService from "../lib/authService";
 
 export default function ProtectedRoute({ children, role }) {
-  const user = getUser();
+  const user = authService.getCurrentUser();
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (role && user.role !== role) {
-    return user.role === "admin"
-      ? <Navigate to="/admin" replace />
+  if (role && !user.roles?.includes(role)) {
+    return user.roles?.includes("admin")
+      ? <Navigate to="/admin/dashboard" replace />
       : <Navigate to="/" replace />;
   }
 

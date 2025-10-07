@@ -1,31 +1,147 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import authService from "@/lib/authService"
+import { toast } from "sonner"
 
 export default function LoginForm() {
+    const navigate = useNavigate()
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [errors, setErrors] = useState({})
     const [formData, setFormData] = useState({
         email: "",
         password: "",
         rememberMe: false,
     })
 
+    // Check if user is already logged in
+    useEffect(() => {
+        if (authService.isAuthenticated()) {
+            const user = authService.getCurrentUser()
+            if (user && user.roles) {
+                if (user.roles.includes('admin')) {
+                    navigate("/admin/dashboard")
+                } else {
+                    navigate("/")
+                }
+            } else {
+                navigate("/")
+            }
+        }
+
+        // Load remember me preference
+        const remembered = localStorage.getItem('rememberMe')
+        if (remembered === 'true') {
+            setFormData(prev => ({ ...prev, rememberMe: true }))
+        }
+    }, [])
+
+    const validateForm = () => {
+        const newErrors = {}
+
+        // Validate email
+        if (!formData.email) {
+            newErrors.email = "Email là bắt buộc"
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            newErrors.email = "Email không hợp lệ"
+        }
+
+        // Validate password
+        if (!formData.password) {
+            newErrors.password = "Mật khẩu là bắt buộc"
+        } else if (formData.password.length < 6) {
+            newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự"
+        }
+
+        setErrors(newErrors)
+        return Object.keys(newErrors).length === 0
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
-        setIsLoading(true)
 
-        // Giả lập quá trình đăng nhập
-        setTimeout(() => {
+        // Validate form
+        if (!validateForm()) {
+            toast.error("Vui lòng kiểm tra lại thông tin đăng nhập!")
+            return
+        }
+
+        setIsLoading(true)
+        setErrors({})
+
+        try {
+            // Prepare credentials for API
+            const credentials = {
+                email: formData.email.trim(),
+                password: formData.password,
+            }
+
+            // Call login API
+            const response = await authService.login(credentials)
+
+            // Handle remember me
+            if (formData.rememberMe) {
+                localStorage.setItem('rememberMe', 'true')
+            } else {
+                localStorage.removeItem('rememberMe')
+            }
+
+            // Show success message
+            toast.success("Đăng nhập thành công!", {
+                description: "Chào mừng bạn quay trở lại FoodieHub"
+            })
+
+            // Determine redirect path based on user role
+            const user = response.user
+            let redirectPath = "/"
+
+            if (user && user.roles) {
+                if (user.roles.includes('admin')) {
+                    redirectPath = "/admin/dashboard"
+                } else if (user.roles.includes('customer')) {
+                    redirectPath = "/"
+                }
+            }
+
+            // Navigate after 1 second
+            setTimeout(() => {
+                navigate(redirectPath)
+            }, 1000)
+
+        } catch (error) {
+            console.error("Login error:", error)
+
+            // Handle different error cases
+            if (error.status === 401) {
+                toast.error("Đăng nhập thất bại", {
+                    description: "Email hoặc mật khẩu không chính xác"
+                })
+                setErrors({
+                    email: "Email hoặc mật khẩu không chính xác",
+                    password: "Email hoặc mật khẩu không chính xác"
+                })
+            } else if (error.status === 400) {
+                toast.error("Lỗi đăng nhập", {
+                    description: error.message || "Thông tin đăng nhập không hợp lệ"
+                })
+            } else if (error.status === 0) {
+                toast.error("Lỗi kết nối", {
+                    description: error.message
+                })
+            } else {
+                toast.error("Đăng nhập thất bại", {
+                    description: error.message || "Có lỗi xảy ra. Vui lòng thử lại sau."
+                })
+            }
+        } finally {
             setIsLoading(false)
-            // Redirect sau khi login
-            window.location.href = "/account"
-        }, 1500)
+        }
     }
 
     const handleInputChange = (field, value) => {
@@ -58,10 +174,13 @@ export default function LoginForm() {
                                             placeholder="Nhập email của bạn"
                                             value={formData.email}
                                             onChange={(e) => handleInputChange("email", e.target.value)}
-                                            className="pl-10"
+                                            className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
                                             required
                                         />
                                     </div>
+                                    {errors.email && (
+                                        <p className="text-xs text-red-500">{errors.email}</p>
+                                    )}
                                 </div>
 
                                 {/* Password */}
@@ -75,7 +194,7 @@ export default function LoginForm() {
                                             placeholder="Nhập mật khẩu"
                                             value={formData.password}
                                             onChange={(e) => handleInputChange("password", e.target.value)}
-                                            className="pl-10 pr-10"
+                                            className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
                                             required
                                         />
                                         <Button
@@ -88,6 +207,9 @@ export default function LoginForm() {
                                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                         </Button>
                                     </div>
+                                    {errors.password && (
+                                        <p className="text-xs text-red-500">{errors.password}</p>
+                                    )}
                                 </div>
 
                                 {/* Remember me & Forgot password */}

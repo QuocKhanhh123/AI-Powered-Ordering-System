@@ -1,12 +1,81 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Menu } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ShoppingCart, Menu, User, Settings, LogOut, UserCircle } from "lucide-react"
+import authService from "@/lib/authService"
+import { toast } from "sonner"
 
 export default function Header() {
+  const navigate = useNavigate()
   const [cartCount, setCartCount] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [user, setUser] = useState(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // Check authentication status on component mount and on storage change
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const authenticated = authService.isAuthenticated()
+      const currentUser = authService.getCurrentUser()
+
+      setIsAuthenticated(authenticated)
+      setUser(currentUser)
+    }
+
+    // Check on mount
+    checkAuthStatus()
+
+    // Listen for storage changes (when user logs in/out in another tab)
+    const handleStorageChange = (e) => {
+      if (e.key === 'token' || e.key === 'user') {
+        checkAuthStatus()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    // Also check periodically (in case of programmatic changes)
+    const interval = setInterval(checkAuthStatus, 1000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [])
+
+  const handleLogout = () => {
+    try {
+      authService.logout()
+      setUser(null)
+      setIsAuthenticated(false)
+      toast.success("Đăng xuất thành công!", {
+        description: "Hẹn gặp lại bạn lần sau"
+      })
+      navigate('/')
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi đăng xuất")
+    }
+  }
+
+  const getUserInitials = (name) => {
+    if (!name) return "U"
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,16 +119,63 @@ export default function Header() {
               </Button>
             </Link>
 
-            {/* Auth Buttons */}
+            {/* Auth Section */}
             <div className="hidden md:flex items-center space-x-2">
-              <Link to="/login">
-                <Button variant="ghost" size="sm">
-                  Đăng Nhập
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button size="sm">Đăng Ký</Button>
-              </Link>
+              {isAuthenticated && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar} alt={user.name || user.email} />
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {getUserInitials(user.name || user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {user.name || "User"}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      <span>Thông tin cá nhân</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Cài đặt</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/orders')}>
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      <span>Đơn hàng của tôi</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Đăng xuất</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm">
+                      Đăng Nhập
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button size="sm">Đăng Ký</Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -100,15 +216,64 @@ export default function Header() {
                 Về Chúng Tôi
               </Link>
 
+              {/* Mobile Auth Section */}
               <div className="flex flex-col space-y-2 pt-4 border-t">
-                <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Đăng Nhập
-                  </Button>
-                </Link>
-                <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full">Đăng Ký</Button>
-                </Link>
+                {isAuthenticated && user ? (
+                  <>
+                    <div className="flex items-center space-x-3 px-3 py-2 bg-muted rounded-lg">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatar} alt={user.name || user.email} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          {getUserInitials(user.name || user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <p className="text-sm font-medium">{user.name || "User"}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+                    <Link to="/profile" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        Thông tin cá nhân
+                      </Button>
+                    </Link>
+                    <Link to="/settings" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Cài đặt
+                      </Button>
+                    </Link>
+                    <Link to="/orders" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Đơn hàng của tôi
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-red-600 hover:text-red-600"
+                      onClick={() => {
+                        handleLogout()
+                        setIsMenuOpen(false)
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Đăng xuất
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        Đăng Nhập
+                      </Button>
+                    </Link>
+                    <Link to="/register" onClick={() => setIsMenuOpen(false)}>
+                      <Button className="w-full">Đăng Ký</Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>
