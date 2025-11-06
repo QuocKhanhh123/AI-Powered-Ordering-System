@@ -1,62 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, Minus, Plus, Heart, Share2, ArrowLeft } from "lucide-react"
-import { Link } from "react-router-dom"
-
-// Mock data - trong thực tế sẽ fetch từ API
-const productData = {
-    1: {
-        id: 1,
-        name: "Phở Bò Đặc Biệt",
-        description:
-            "Nước dùng trong vắt được ninh từ xương bò trong nhiều giờ, thịt bò tươi ngon được thái mỏng, bánh phở dai ngon. Món phở này được chế biến theo công thức truyền thống của Hà Nội, mang đến hương vị đậm đà và thơm ngon khó cưỡng.",
-        price: 89000,
-        originalPrice: 99000,
-        images: ["/assets/images/vietnamese-pho-bo-with-beef-and-herbs.jpg", "/vietnamese-pho-bo-with-beef-and-herbs.jpg"],
-        rating: 4.8,
-        reviews: 234,
-        category: "Phở",
-        badge: "Bán chạy",
-        isAvailable: true,
-        ingredients: ["Bánh phở", "Thịt bò", "Hành lá", "Ngò gai", "Giá đỗ", "Nước dùng xương bò"],
-        nutrition: {
-            calories: 450,
-            protein: 25,
-            carbs: 55,
-            fat: 12,
-        },
-        portion: "Dành cho 1 người",
-        prepTime: "15-20 phút",
-    },
-    2: {
-        id: 2,
-        name: "Bánh Mì Thịt Nướng",
-        description:
-            "Bánh mì giòn rụm được nướng tươi mỗi ngày, thịt nướng thơm lừng được ướp gia vị đặc biệt, kết hợp với rau sống tươi mát và nước sốt đậm đà. Đây là món ăn đường phố được yêu thích nhất của Việt Nam.",
-        price: 35000,
-        originalPrice: null,
-        images: [
-            "/vietnamese-banh-mi-sandwich-with-grilled-pork.jpg",
-            "/vietnamese-banh-mi-sandwich-with-grilled-pork.jpg",
-        ],
-        rating: 4.9,
-        reviews: 156,
-        category: "Bánh Mì",
-        badge: "Mới",
-        isAvailable: true,
-        ingredients: ["Bánh mì", "Thịt nướng", "Pate", "Rau sống", "Dưa chua", "Nước sốt"],
-        nutrition: {
-            calories: 380,
-            protein: 20,
-            carbs: 45,
-            fat: 15,
-        },
-        portion: "Dành cho 1 người",
-        prepTime: "10-15 phút",
-    },
-}
+import { Star, Minus, Plus, Heart, Share2, ArrowLeft, Loader2, ShoppingCart } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import apiClient from "@/lib/api"
+import { toast } from "sonner"
+import authService from "@/lib/authService"
 
 const reviews = [
     {
@@ -86,11 +36,41 @@ const reviews = [
 ]
 
 export default function ProductDetail({ productId }) {
+    const [product, setProduct] = useState(null)
+    const [loading, setLoading] = useState(true)
     const [quantity, setQuantity] = useState(1)
     const [selectedImage, setSelectedImage] = useState(0)
     const [isFavorite, setIsFavorite] = useState(false)
+    const navigate = useNavigate()
 
-    const product = productData[productId]
+    useEffect(() => {
+        const fetchProduct = async () => {
+            try {
+                setLoading(true)
+                const response = await apiClient.get(`/api/menu-items/item/${productId}`)
+                setProduct(response)
+            } catch (error) {
+                console.error('Error fetching product:', error)
+                toast.error('Không thể tải thông tin sản phẩm')
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        if (productId) {
+            fetchProduct()
+        }
+    }, [productId])
+
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </div>
+        )
+    }
 
     if (!product) {
         return (
@@ -109,7 +89,50 @@ export default function ProductDetail({ productId }) {
         setQuantity(Math.max(1, quantity + change))
     }
 
-    const totalPrice = product.price * quantity
+    const handleAddToCart = async () => {
+        if (!authService.isAuthenticated()) {
+            toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng')
+            navigate('/login')
+            return
+        }
+
+        try {
+            await apiClient.post('/api/cart/add-to-cart', {
+                menuItemId: product.id,
+                quantity: quantity,
+                notes: ''
+            })
+            toast.success(`Đã thêm ${product.name} vào giỏ hàng`)
+            setQuantity(1)
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+            toast.error(error.message || 'Không thể thêm vào giỏ hàng')
+        }
+    }
+
+    const handleBuyNow = async () => {
+        if (!authService.isAuthenticated()) {
+            toast.error('Vui lòng đăng nhập để mua hàng')
+            navigate('/login')
+            return
+        }
+
+        try {
+            await apiClient.post('/api/cart/add-to-cart', {
+                menuItemId: product.id,
+                quantity: quantity,
+                notes: ''
+            })
+            window.dispatchEvent(new Event('cartUpdated'))
+            navigate('/cart')
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+            toast.error(error.message || 'Không thể thêm vào giỏ hàng')
+        }
+    }
+
+    const totalPrice = product.finalPrice * quantity
 
     return (
         <div className="py-8">
@@ -127,20 +150,22 @@ export default function ProductDetail({ productId }) {
                     <div className="space-y-4">
                         <div className="relative rounded-xl overflow-hidden">
                             <img
-                                src={product.images[selectedImage] || "/placeholder.svg"}
+                                src={product.thumbnail || "/placeholder.svg"}
                                 alt={product.name}
                                 className="w-full h-96 lg:h-[500px] object-cover"
                             />
-                            {product.badge && (
-                                <Badge
-                                    className="absolute top-4 left-4"
-                                    variant={product.badge === "Giảm giá" ? "destructive" : "secondary"}
-                                >
-                                    {product.badge}
+                            {product.isDiscountActive && (
+                                <Badge className="absolute top-4 left-4" variant="destructive">
+                                    Giảm giá
+                                </Badge>
+                            )}
+                            {product.rateCount > 200 && (
+                                <Badge className="absolute top-4 right-4" variant="secondary">
+                                    Bán chạy
                                 </Badge>
                             )}
                         </div>
-                        {product.images.length > 1 && (
+                        {product.images && product.images.length > 1 && (
                             <div className="flex space-x-2">
                                 {product.images.map((image, index) => (
                                     <button
@@ -182,22 +207,22 @@ export default function ProductDetail({ productId }) {
                                         {[...Array(5)].map((_, i) => (
                                             <Star
                                                 key={i}
-                                                className={`h-4 w-4 ${i < Math.floor(product.rating) ? "fill-accent text-accent" : "text-muted-foreground"
+                                                className={`h-4 w-4 ${i < Math.floor(product.rate) ? "fill-accent text-accent" : "text-muted-foreground"
                                                     }`}
                                             />
                                         ))}
                                     </div>
-                                    <span className="font-medium">{product.rating}</span>
+                                    <span className="font-medium">{product.rate}</span>
                                 </div>
-                                <span className="text-muted-foreground">({product.reviews} đánh giá)</span>
+                                <span className="text-muted-foreground">({product.rateCount} đánh giá)</span>
                                 <Badge variant="outline">{product.category}</Badge>
                             </div>
 
                             <div className="flex items-center space-x-3 mb-6">
-                                <span className="text-3xl font-bold text-primary">{product.price.toLocaleString("vi-VN")}đ</span>
-                                {product.originalPrice && (
+                                <span className="text-3xl font-bold text-primary">{product.finalPrice.toLocaleString("vi-VN")}đ</span>
+                                {product.isDiscountActive && product.price > product.discountPrice && (
                                     <span className="text-xl text-muted-foreground line-through">
-                                        {product.originalPrice.toLocaleString("vi-VN")}đ
+                                        {product.price.toLocaleString("vi-VN")}đ
                                     </span>
                                 )}
                             </div>
@@ -209,11 +234,11 @@ export default function ProductDetail({ productId }) {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <span className="font-medium">Khẩu phần:</span>
-                                <p className="text-muted-foreground">{product.portion}</p>
+                                <p className="text-muted-foreground">{product.portion || "1 phần"}</p>
                             </div>
                             <div>
                                 <span className="font-medium">Thời gian chuẩn bị:</span>
-                                <p className="text-muted-foreground">{product.prepTime}</p>
+                                <p className="text-muted-foreground">{product.preparationTime || "15-20 phút"}</p>
                             </div>
                         </div>
 
@@ -233,56 +258,51 @@ export default function ProductDetail({ productId }) {
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-3">
-                                <Button size="lg" className="flex-1">
+                                <Button size="lg" className="flex-1" onClick={handleAddToCart}>
+                                    <ShoppingCart className="h-4 w-4 mr-2" />
                                     Thêm vào giỏ - {totalPrice.toLocaleString("vi-VN")}đ
                                 </Button>
-                                <Button variant="outline" size="lg">
+                                <Button variant="outline" size="lg" onClick={handleBuyNow}>
                                     Mua ngay
                                 </Button>
                             </div>
                         </div>
 
                         {/* Ingredients */}
-                        <div>
-                            <h3 className="font-semibold mb-3">Thành phần:</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {product.ingredients.map((ingredient, index) => (
-                                    <Badge key={index} variant="outline">
-                                        {ingredient}
-                                    </Badge>
-                                ))}
+                        {product.ingredients && product.ingredients.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold mb-3">Thành phần:</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {product.ingredients.map((ingredient, index) => (
+                                        <Badge key={index} variant="outline">
+                                            {ingredient}
+                                        </Badge>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Nutrition */}
-                        <Card>
-                            <CardContent className="p-4">
-                                <h3 className="font-semibold mb-3">Thông tin dinh dưỡng (1 phần):</h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="flex justify-between">
-                                        <span>Calories:</span>
-                                        <span className="font-medium">{product.nutrition.calories} kcal</span>
+                        {product.nutritionalInformation && product.nutritionalInformation.length > 0 && (
+                            <Card>
+                                <CardContent className="p-4">
+                                    <h3 className="font-semibold mb-3">Thông tin dinh dưỡng (1 phần):</h3>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        {product.nutritionalInformation.map((nutrition, index) => (
+                                            <div key={index} className="flex justify-between">
+                                                <span>{nutrition.name}:</span>
+                                                <span className="font-medium">{nutrition.value}{nutrition.unit}</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span>Protein:</span>
-                                        <span className="font-medium">{product.nutrition.protein}g</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Carbs:</span>
-                                        <span className="font-medium">{product.nutrition.carbs}g</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Fat:</span>
-                                        <span className="font-medium">{product.nutrition.fat}g</span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
 
                 {/* Reviews Section */}
-                <div className="mt-16">
+                <div className="mt-12">
                     <h2 className="text-2xl font-bold mb-6">Đánh giá từ khách hàng</h2>
                     <div className="space-y-6">
                         {reviews.map((review) => (

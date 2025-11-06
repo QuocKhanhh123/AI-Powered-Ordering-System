@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Settings,
     User,
@@ -12,7 +12,8 @@ import {
     Eye,
     EyeOff,
     Upload,
-    Trash2
+    Trash2,
+    Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -31,22 +32,57 @@ import { Textarea } from '../../components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { toast } from 'sonner';
 import authService from '../../lib/authService';
+import apiClient from '../../lib/api';
 
 export default function AdminSettings() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const currentUser = authService.getCurrentUser();
+    const [profileLoading, setProfileLoading] = useState(true);
 
     // Profile Settings
     const [profile, setProfile] = useState({
-        fullName: currentUser?.fullName || 'Admin User',
-        email: currentUser?.email || 'admin@foodiehub.com',
-        phone: '+84 123 456 789',
+        fullName: '',
+        email: '',
+        phone: '',
         avatar: null,
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
+
+    // Fetch user profile from API
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            try {
+                setProfileLoading(true);
+                const response = await apiClient.get('/api/auth/me');
+
+                // Map API data to profile state
+                setProfile(prev => ({
+                    ...prev,
+                    fullName: response.name || 'Admin User',
+                    email: response.email || '',
+                    phone: response.phone || '+84 123 456 789',
+                    // Keep avatar, passwords as empty/null since they're not in API
+                }));
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                toast.error('Không thể tải thông tin người dùng');
+
+                // Fallback to default values
+                setProfile(prev => ({
+                    ...prev,
+                    fullName: 'Admin User',
+                    email: 'admin@foodiehub.com',
+                    phone: '+84 123 456 789'
+                }));
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+
+        fetchUserProfile();
+    }, []);
 
     // System Settings
     const [systemSettings, setSystemSettings] = useState({
@@ -86,17 +122,44 @@ export default function AdminSettings() {
     const handleProfileUpdate = async () => {
         setLoading(true);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
+            // Validate password if user wants to change it
             if (profile.newPassword && profile.newPassword !== profile.confirmPassword) {
                 toast.error('Mật khẩu xác nhận không khớp!');
+                setLoading(false);
                 return;
             }
 
+            // Prepare update data
+            const updateData = {
+                name: profile.fullName,
+                email: profile.email,
+                phone: profile.phone
+            };
+
+            // Add password to update if provided
+            if (profile.newPassword) {
+                updateData.currentPassword = profile.currentPassword;
+                updateData.newPassword = profile.newPassword;
+            }
+
+            // Call API to update profile (adjust endpoint as needed)
+            // await apiClient.put('/auth/profile', updateData);
+
+            // For now, simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
             toast.success('Cập nhật thông tin thành công!');
+
+            // Clear password fields after successful update
+            setProfile(prev => ({
+                ...prev,
+                currentPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            }));
         } catch (error) {
-            toast.error('Có lỗi xảy ra khi cập nhật!');
+            console.error('Error updating profile:', error);
+            toast.error(error.message || 'Có lỗi xảy ra khi cập nhật!');
         } finally {
             setLoading(false);
         }
@@ -186,78 +249,86 @@ export default function AdminSettings() {
                             <CardDescription>Quản lý thông tin tài khoản admin của bạn</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {/* Avatar Section */}
-                            <div className="flex items-center gap-6">
-                                <Avatar className="w-24 h-24">
-                                    {profile.avatar ? (
-                                        <AvatarImage src={profile.avatar} alt="Avatar" />
-                                    ) : (
-                                        <AvatarFallback className="text-2xl">
-                                            {profile.fullName.charAt(0)}
-                                        </AvatarFallback>
-                                    )}
-                                </Avatar>
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <label htmlFor="avatar-upload">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <span className="cursor-pointer">
-                                                    <Upload className="w-4 h-4 mr-2" />
-                                                    Tải Ảnh Lên
-                                                </span>
-                                            </Button>
-                                        </label>
-                                        <input
-                                            id="avatar-upload"
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={handleAvatarUpload}
-                                        />
-                                        {profile.avatar && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setProfile(prev => ({ ...prev, avatar: null }))}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        )}
+                            {profileLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Avatar Section */}
+                                    <div className="flex items-center gap-6">
+                                        <Avatar className="w-24 h-24">
+                                            {profile.avatar ? (
+                                                <AvatarImage src={profile.avatar} alt="Avatar" />
+                                            ) : (
+                                                <AvatarFallback className="text-2xl">
+                                                    {profile.fullName ? profile.fullName.charAt(0).toUpperCase() : 'A'}
+                                                </AvatarFallback>
+                                            )}
+                                        </Avatar>
+                                        <div className="space-y-2">
+                                            <div className="flex gap-2">
+                                                <label htmlFor="avatar-upload">
+                                                    <Button variant="outline" size="sm" asChild>
+                                                        <span className="cursor-pointer">
+                                                            <Upload className="w-4 h-4 mr-2" />
+                                                            Tải Ảnh Lên
+                                                        </span>
+                                                    </Button>
+                                                </label>
+                                                <input
+                                                    id="avatar-upload"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={handleAvatarUpload}
+                                                />
+                                                {profile.avatar && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setProfile(prev => ({ ...prev, avatar: null }))}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-500">
+                                                Chọn ảnh JPG, PNG hoặc GIF. Tối đa 5MB.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-gray-500">
-                                        Chọn ảnh JPG, PNG hoặc GIF. Tối đa 5MB.
-                                    </p>
-                                </div>
-                            </div>
 
-                            {/* Basic Info */}
-                            <div className="grid md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="fullName">Họ và Tên</Label>
-                                    <Input
-                                        id="fullName"
-                                        value={profile.fullName}
-                                        onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        value={profile.email}
-                                        onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone">Số Điện Thoại</Label>
-                                    <Input
-                                        id="phone"
-                                        value={profile.phone}
-                                        onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
+                                    {/* Basic Info */}
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="fullName">Họ và Tên</Label>
+                                            <Input
+                                                id="fullName"
+                                                value={profile.fullName}
+                                                onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email">Email</Label>
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                value={profile.email}
+                                                onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="phone">Số Điện Thoại</Label>
+                                            <Input
+                                                id="phone"
+                                                value={profile.phone}
+                                                onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Password Change */}
                             <div className="border-t pt-6">

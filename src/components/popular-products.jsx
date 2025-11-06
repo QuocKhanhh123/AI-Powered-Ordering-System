@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Star, TrendingUp } from "lucide-react"
 import { Link } from "react-router-dom"
+import apiClient from "@/lib/api"
+import { toast } from "sonner"
+import authService from "@/lib/authService"
 
 const popularItems = [
     {
@@ -63,6 +66,26 @@ const popularItems = [
 ]
 
 export default function PopularProducts() {
+    const handleAddToCart = async (item) => {
+        if (!authService.isAuthenticated()) {
+            toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng')
+            return
+        }
+
+        try {
+            await apiClient.post('/api/cart/add-to-cart', {
+                menuItemId: item.id,
+                quantity: 1,
+                notes: ''
+            })
+            toast.success(`Đã thêm ${item.name} vào giỏ hàng`)
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+            toast.error(error.message || 'Không thể thêm vào giỏ hàng')
+        }
+    }
+
     return (
         <section className="py-16 lg:py-24 bg-muted/30">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -112,9 +135,9 @@ export default function PopularProducts() {
                                     <span className="text-xl font-bold text-primary">
                                         {item.price.toLocaleString("vi-VN")}đ
                                     </span>
-                                    <Link to={`/product/${item.id}`}>
-                                        <Button size="sm">Đặt ngay</Button>
-                                    </Link>
+                                    <Button size="sm" onClick={() => handleAddToCart(item)}>
+                                        Đặt ngay
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>

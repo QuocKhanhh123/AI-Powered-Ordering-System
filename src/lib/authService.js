@@ -15,15 +15,13 @@ const authService = {
      */
     async register(userData) {
         try {
-            const response = await apiClient.post('/auth/register', {
+            const response = await apiClient.post('/api/auth/register', {
                 email: userData.email,
                 phone: userData.phone,
                 password: userData.password,
                 name: userData.name,
             });
 
-            // API trả về: { message: "User registered successfully", user: {...} }
-            // Save user data to localStorage if needed
             if (response.user && response.user.id) {
                 localStorage.setItem('user', JSON.stringify(response.user));
             }
@@ -44,10 +42,8 @@ const authService = {
      */
     async login(credentials) {
         try {
-            const response = await apiClient.post('/auth/login', credentials);
+            const response = await apiClient.post('/api/auth/login', credentials);
 
-            // API trả về: { access_token, refresh_token, user: {...} }
-            // Save user data and tokens to localStorage
             if (response.user) {
                 localStorage.setItem('user', JSON.stringify(response.user));
             }
@@ -59,7 +55,6 @@ const authService = {
                 localStorage.setItem('refresh_token', response.refresh_token);
             }
 
-            // Dispatch custom auth state change event
             window.dispatchEvent(new CustomEvent('authStateChanged'));
 
             return response;
@@ -71,6 +66,8 @@ const authService = {
 
     /**
      * Logout user
+     * Note: This function only clears auth data.
+     * Navigation should be handled by the calling component.
      */
     logout() {
         localStorage.removeItem('user');
@@ -78,10 +75,7 @@ const authService = {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
 
-        // Dispatch custom auth state change event
         window.dispatchEvent(new CustomEvent('authStateChanged'));
-
-        window.location.href = '/login';
     },
 
     /**
@@ -140,6 +134,40 @@ const authService = {
      */
     isAdmin() {
         return this.hasRole('admin');
+    },
+
+    /**
+     * Refresh access token using refresh token
+     * @returns {Promise<string>} New access token
+     */
+    async refreshToken() {
+        try {
+            const refreshToken = localStorage.getItem('refresh_token');
+
+            if (!refreshToken) {
+                throw new Error('No refresh token available');
+            }
+
+            const response = await apiClient.post('/api/auth/refresh_token', {
+                refresh_token: refreshToken,
+            });
+
+            if (response.access_token) {
+                localStorage.setItem('token', response.access_token);
+                localStorage.setItem('access_token', response.access_token);
+            }
+
+            if (response.refresh_token) {
+                localStorage.setItem('refresh_token', response.refresh_token);
+            }
+
+            return response.access_token;
+        } catch (error) {
+            console.error('Refresh token error:', error);
+            // If refresh fails, logout user
+            this.logout();
+            throw error;
+        }
     },
 };
 

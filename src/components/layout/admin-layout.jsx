@@ -41,19 +41,20 @@ export function AdminLayout({ children }) {
             }
             setIsLoading(false);
         };
-
-        // Small delay to prevent flash
+        
         const timer = setTimeout(checkAuth, 100);
         return () => clearTimeout(timer);
     }, [navigate]);
 
     const handleLogout = () => {
         try {
-            authService.logout();
-            setIsAuthenticated(false);
             toast.success("Đăng xuất thành công!");
-            navigate("/login");
+            localStorage.clear();
+            sessionStorage.clear();
+
+            window.location.href = '/login';
         } catch (error) {
+            console.error('Logout error:', error);
             toast.error("Có lỗi xảy ra khi đăng xuất");
         }
     };
@@ -67,7 +68,6 @@ export function AdminLayout({ children }) {
         { name: "Cài Đặt", href: "/admin/settings", icon: Settings },
     ];
 
-    // Show loading spinner while checking authentication
     if (isLoading) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -79,7 +79,6 @@ export function AdminLayout({ children }) {
         );
     }
 
-    // Don't render anything if not authenticated (will redirect)
     if (!isAuthenticated) {
         return null;
     }

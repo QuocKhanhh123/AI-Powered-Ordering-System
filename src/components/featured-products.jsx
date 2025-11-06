@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Star, Plus } from "lucide-react"
 import { Link } from "react-router-dom"
+import apiClient from "@/lib/api"
+import { toast } from "sonner"
+import authService from "@/lib/authService"
 
 const featuredItems = [
     {
@@ -53,6 +56,26 @@ const featuredItems = [
 ]
 
 export default function FeaturedProducts() {
+    const handleAddToCart = async (item) => {
+        if (!authService.isAuthenticated()) {
+            toast.error('Vui lòng đăng nhập để thêm vào giỏ hàng')
+            return
+        }
+
+        try {
+            await apiClient.post('/api/cart/add-to-cart', {
+                menuItemId: item.id,
+                quantity: 1,
+                notes: ''
+            })
+            toast.success(`Đã thêm ${item.name} vào giỏ hàng`)
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error adding to cart:', error)
+            toast.error(error.message || 'Không thể thêm vào giỏ hàng')
+        }
+    }
+
     return (
         <section className="py-16 lg:py-24">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,6 +107,7 @@ export default function FeaturedProducts() {
                                     size="icon"
                                     className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
                                     variant="secondary"
+                                    onClick={() => handleAddToCart(item)}
                                 >
                                     <Plus className="h-4 w-4" />
                                 </Button>
@@ -116,9 +140,9 @@ export default function FeaturedProducts() {
                                             )}
                                         </div>
                                     </div>
-                                    <Link to={`/product/${item.id}`}>
-                                        <Button size="sm">Thêm vào giỏ</Button>
-                                    </Link>
+                                    <Button size="sm" onClick={() => handleAddToCart(item)}>
+                                        Thêm vào giỏ
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>

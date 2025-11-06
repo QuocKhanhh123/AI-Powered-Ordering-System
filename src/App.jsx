@@ -6,10 +6,13 @@ import authService from "./lib/authService";
 import Home from './pages/HomePage';
 import Menu from './pages/Menu';
 import About from './pages/About';
+import Contact from './pages/Contact';
 import NotFound from './pages/NotFound';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import OrderStatus from './pages/OrderStatus';
 import ProductDetailsPage from './pages/ProductDetails';
 import Orders from './pages/Orders';
 import Profile from './pages/Profile';
@@ -40,10 +43,21 @@ const CustomerApp = () => (
       <Route path="/" element={<Home />} />
       <Route path="/menu" element={<Menu />} />
       <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/product/:id" element={<ProductDetailsPage />} />
       <Route path="/cart" element={
         <ProtectedRoute role="customer">
           <Cart />
+        </ProtectedRoute>
+      } />
+      <Route path="/checkout" element={
+        <ProtectedRoute role="customer">
+          <Checkout />
+        </ProtectedRoute>
+      } />
+      <Route path="/order-status/:transactionId" element={
+        <ProtectedRoute role="customer">
+          <OrderStatus />
         </ProtectedRoute>
       } />
       <Route path="/orders" element={

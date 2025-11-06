@@ -36,7 +36,7 @@ export default function Profile() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold">Thông tin cá nhân</h1>
-                    <p className="text-muted-foreground">Quản lý thông tin tài khoản của bạn</p>
+                    <p className="text-muted-foreground mt-3">Quản lý thông tin tài khoản của bạn</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -13,16 +13,33 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ShoppingCart, Menu, User, Settings, LogOut, UserCircle } from "lucide-react"
 import authService from "@/lib/authService"
+import apiClient from "@/lib/api"
 import { toast } from "sonner"
 
 export default function Header() {
   const navigate = useNavigate()
-  const [cartCount, setCartCount] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
 
-  // Check authentication status on component mount and on storage change
+  const fetchCartCount = async () => {
+    if (!authService.isAuthenticated()) {
+      setCartCount(0)
+      return
+    }
+
+    try {
+      const response = await apiClient.get('/api/cart/my-cart')
+      const items = response?.data?.items || []
+      const total = Array.isArray(items) ? items.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0
+      setCartCount(total)
+    } catch (error) {
+      console.error('Error fetching cart count:', error)
+      setCartCount(0)
+    }
+  }
+
   useEffect(() => {
     const checkAuthStatus = () => {
       const authenticated = authService.isAuthenticated()
@@ -30,39 +47,61 @@ export default function Header() {
 
       setIsAuthenticated(authenticated)
       setUser(currentUser)
+
+      // Fetch cart count khi auth state thay đổi
+      if (authenticated) {
+        fetchCartCount()
+      } else {
+        setCartCount(0)
+      }
     }
 
-    // Check on mount
     checkAuthStatus()
 
-    // Listen for storage changes (when user logs in/out in another tab)
     const handleStorageChange = (e) => {
       if (e.key === 'token' || e.key === 'user') {
         checkAuthStatus()
       }
     }
 
-    window.addEventListener('storage', handleStorageChange)
+    const handleAuthChange = () => {
+      checkAuthStatus()
+    }
 
-    // Also check periodically (in case of programmatic changes)
-    const interval = setInterval(checkAuthStatus, 1000)
+    const handleCartUpdate = () => {
+      fetchCartCount()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('authStateChanged', handleAuthChange)
+    window.addEventListener('cartUpdated', handleCartUpdate)
+
+    // const interval = setInterval(() => {
+    //   if (authService.isAuthenticated()) {
+    //     fetchCartCount()
+    //   }
+    // }, 10000)
 
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
+      window.removeEventListener('authStateChanged', handleAuthChange)
+      window.removeEventListener('cartUpdated', handleCartUpdate)
+      // clearInterval(interval)
     }
   }, [])
 
   const handleLogout = () => {
     try {
-      authService.logout()
-      setUser(null)
-      setIsAuthenticated(false)
       toast.success("Đăng xuất thành công!", {
         description: "Hẹn gặp lại bạn lần sau"
       })
-      navigate('/')
+
+      localStorage.clear()
+      sessionStorage.clear()
+
+      window.location.href = '/'
     } catch (error) {
+      console.error('Logout error:', error)
       toast.error("Có lỗi xảy ra khi đăng xuất")
     }
   }
@@ -99,6 +138,9 @@ export default function Header() {
             </Link>
             <Link to="/about" className="text-foreground hover:text-primary transition-colors">
               Về Chúng Tôi
+            </Link>
+            <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
+              Liên Hệ
             </Link>
           </nav>
 
@@ -214,6 +256,13 @@ export default function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Về Chúng Tôi
+              </Link>
+              <Link
+                to="/contact"
+                className="text-foreground hover:text-primary transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Liên Hệ
               </Link>
 
               {/* Mobile Auth Section */}

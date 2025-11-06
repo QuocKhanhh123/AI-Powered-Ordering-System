@@ -1,57 +1,160 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react"
-import { Link } from "react-router-dom"
-
-// Mock cart data
-const initialCartItems = [
-    {
-        id: 1,
-        name: "Phở Bò Đặc Biệt",
-        price: 89000,
-        quantity: 2,
-        image: "/assets/images/vietnamese-pho-bo-with-beef-and-herbs.jpg",
-        note: "Ít hành",
-    },
-    {
-        id: 2,
-        name: "Bánh Mì Thịt Nướng",
-        price: 35000,
-        quantity: 1,
-        image: "/assets/images/vietnamese-banh-mi-sandwich-with-grilled-pork.jpg",
-        note: "",
-    },
-    {
-        id: 3,
-        name: "Gỏi Cuốn Tôm Thịt",
-        price: 45000,
-        quantity: 3,
-        image: "/assets/images/vietnamese-fresh-spring-rolls-with-shrimp-and-pork.jpg",
-        note: "Thêm nước chấm",
-    },
-]
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Loader2 } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import apiClient from "@/lib/api"
+import { toast } from "sonner"
+import authService from "@/lib/authService"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function CartContent() {
-    const [cartItems, setCartItems] = useState(initialCartItems)
+    const [cartItems, setCartItems] = useState([])
+    const [loading, setLoading] = useState(true)
     const [promoCode, setPromoCode] = useState("")
     const [discount, setDiscount] = useState(0)
+    const [noteTimers, setNoteTimers] = useState({})
+    const navigate = useNavigate()
 
-    const updateQuantity = (id, newQuantity) => {
-        if (newQuantity === 0) {
-            setCartItems(cartItems.filter((item) => item.id !== id))
-        } else {
-            setCartItems(cartItems.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)))
+    useEffect(() => {
+        fetchCartItems()
+    }, [])
+
+    const fetchCartItems = async () => {
+        if (!authService.isAuthenticated()) {
+            setLoading(false)
+            toast.error('Vui lòng đăng nhập để xem giỏ hàng')
+            navigate('/login')
+            return
+        }
+
+        try {
+            setLoading(true)
+            const response = await apiClient.get('/api/cart/my-cart')
+            const items = response?.data?.items || []
+
+            const normalizedItems = items.map(item => ({
+                id: item._id,
+                name: item.name,
+                price: item.price,
+                image: item.thumbnail,
+                quantity: item.quantity,
+                note: item.notes || '',
+                subtotal: item.subtotal
+            }))
+
+            setCartItems(Array.isArray(normalizedItems) ? normalizedItems : [])
+        } catch (error) {
+            console.error('Error fetching cart:', error)
+            toast.error('Không thể tải giỏ hàng')
+            setCartItems([])
+        } finally {
+            setLoading(false)
         }
     }
 
-    const removeItem = (id) => {
-        setCartItems(cartItems.filter((item) => item.id !== id))
+    const updateQuantity = async (itemId, newQuantity) => {
+        if (newQuantity < 1) {
+            removeItem(itemId)
+            return
+        }
+
+        // Tìm item hiện tại để lấy notes
+        const currentItem = cartItems.find(item => item.id === itemId)
+
+        try {
+            // Gọi API với endpoint mới
+            await apiClient.put('/api/cart/update-cart-item', {
+                cartItemId: itemId,
+                quantity: newQuantity,
+                notes: currentItem?.note || ""
+            })
+
+            // Chỉ cập nhật state khi API thành công
+            setCartItems(prev => prev.map(item =>
+                item.id === itemId ? { ...item, quantity: newQuantity } : item
+            ))
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error updating quantity:', error)
+            toast.error(error.message || 'Không thể cập nhật số lượng')
+            // Refresh lại data từ server nếu thất bại
+            fetchCartItems()
+        }
     }
 
-    const updateNote = (id, note) => {
-        setCartItems(cartItems.map((item) => (item.id === id ? { ...item, note } : item)))
+    const removeItem = async (itemId) => {
+        try {
+            // Gọi API trước
+            await apiClient.delete(`/api/cart/remove-from-cart/${itemId}`)
+
+            // Chỉ cập nhật state khi API thành công
+            setCartItems(prev => prev.filter(item => item.id !== itemId))
+            toast.success('Đã xóa sản phẩm khỏi giỏ hàng')
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error removing item:', error)
+            toast.error(error.message || 'Không thể xóa sản phẩm')
+            // Không cập nhật state nếu API thất bại
+        }
+    }
+
+    const clearCart = async () => {
+        try {
+            // Gọi API xóa toàn bộ giỏ hàng
+            await apiClient.delete('/api/cart/clear-cart')
+
+            // Chỉ cập nhật state khi API thành công
+            setCartItems([])
+            toast.success('Đã xóa toàn bộ giỏ hàng')
+            window.dispatchEvent(new Event('cartUpdated'))
+        } catch (error) {
+            console.error('Error clearing cart:', error)
+            toast.error(error.message || 'Không thể xóa giỏ hàng')
+        }
+    }
+
+    const updateNote = (itemId, note) => {
+        // Cập nhật state ngay lập tức để người dùng thấy gõ mượt
+        setCartItems(prev => prev.map(item =>
+            item.id === itemId ? { ...item, note } : item
+        ))
+
+        // Xóa timer cũ nếu có
+        if (noteTimers[itemId]) {
+            clearTimeout(noteTimers[itemId])
+        }
+
+        // Tạo timer mới: đợi 1 giây sau khi ngừng gõ mới gọi API
+        const timer = setTimeout(async () => {
+            const currentItem = cartItems.find(item => item.id === itemId)
+
+            try {
+                await apiClient.put('/api/cart/update-cart-item', {
+                    cartItemId: itemId,
+                    quantity: currentItem?.quantity || 1,
+                    notes: note
+                })
+                window.dispatchEvent(new Event('cartUpdated'))
+            } catch (error) {
+                console.error('Error updating note:', error)
+                toast.error(error.message || 'Không thể cập nhật ghi chú')
+                fetchCartItems()
+            }
+        }, 1000) // Đợi 1 giây
+
+        setNoteTimers(prev => ({ ...prev, [itemId]: timer }))
     }
 
     const applyPromoCode = () => {
@@ -64,12 +167,28 @@ export default function CartContent() {
         }
     }
 
-    const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const discountAmount = subtotal * discount
-    const shippingFee = subtotal >= 200000 ? 0 : 25000
-    const total = subtotal - discountAmount + shippingFee
+    const subtotal = Array.isArray(cartItems) ? cartItems.reduce((sum, item) => {
+        const price = Number(item.price) || 0;
+        const quantity = Number(item.quantity) || 0;
+        return sum + (price * quantity);
+    }, 0) : 0;
+    const discountAmount = subtotal * discount;
+    const shippingFee = subtotal >= 200000 ? 0 : 25000;
+    const total = subtotal - discountAmount + shippingFee;
 
-    if (cartItems.length === 0) {
+    if (loading) {
+        return (
+            <div className="py-16">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (cartItems.length === 0 && !loading) {
         return (
             <div className="py-16">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,8 +216,40 @@ export default function CartContent() {
         <div className="py-8">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold mb-2">Giỏ Hàng Của Bạn</h1>
-                    <p className="text-muted-foreground">Xem lại các món ăn đã chọn trước khi thanh toán</p>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <div>
+                            <h1 className="text-3xl font-bold mb-2">Giỏ Hàng Của Bạn</h1>
+                            <p className="text-muted-foreground">Xem lại các món ăn đã chọn trước khi thanh toán</p>
+                        </div>
+                        {cartItems.length > 0 && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="sm">
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Xóa toàn bộ giỏ hàng
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Xác nhận xóa giỏ hàng</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Bạn có chắc chắn muốn xóa toàn bộ {cartItems.length} sản phẩm trong giỏ hàng?
+                                            Hành động này không thể hoàn tác.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={clearCart}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                            Xóa toàn bộ
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
