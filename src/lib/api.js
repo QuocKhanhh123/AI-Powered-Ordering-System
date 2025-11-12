@@ -1,5 +1,5 @@
 // Base API configuration
-const API_BASE_URL = 'https://extended-where-automobile-psychiatry.trycloudflare.com';
+const API_BASE_URL = 'http://localhost:3000';
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;

@@ -15,11 +15,15 @@ import {
     DollarSign,
     Ban,
     CheckCircle,
-    UserPlus
+    UserPlus,
+    Loader2,
+    RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import apiClient from '../../lib/api';
+import { toast } from 'sonner';
 import {
     Select,
     SelectContent,
@@ -35,74 +39,23 @@ import {
 } from '../../components/ui/dropdown-menu';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
-
-// Mock data - trong thực tế sẽ lấy từ API
-const mockCustomers = [
-    {
-        id: 'CUST001',
-        fullName: 'Nguyễn Văn A',
-        email: 'nguyenvana@email.com',
-        phone: '0123456789',
-        address: '123 Nguyễn Trãi, Quận 1, TP.HCM',
-        joinDate: '2023-12-15',
-        status: 'active',
-        totalOrders: 15,
-        totalSpent: 2450000,
-        lastOrderDate: '2024-01-20',
-        averageOrderValue: 163333,
-        loyaltyPoints: 245,
-        preferredProducts: ['Phở Bò', 'Bánh Mì'],
-        notes: 'Khách hàng VIP, thường đặt cho cả gia đình'
-    },
-    {
-        id: 'CUST002',
-        fullName: 'Trần Thị B',
-        email: 'tranthib@email.com',
-        phone: '0987654321',
-        address: '456 Lê Lợi, Quận 3, TP.HCM',
-        joinDate: '2024-01-05',
-        status: 'active',
-        totalOrders: 8,
-        totalSpent: 890000,
-        lastOrderDate: '2024-01-19',
-        averageOrderValue: 111250,
-        loyaltyPoints: 89,
-        preferredProducts: ['Cơm Tấm', 'Bánh Mì'],
-        notes: ''
-    },
-    {
-        id: 'CUST003',
-        fullName: 'Lê Văn C',
-        email: 'levanc@email.com',
-        phone: '0369852147',
-        address: '789 Võ Văn Tần, Quận 5, TP.HCM',
-        joinDate: '2023-11-20',
-        status: 'inactive',
-        totalOrders: 23,
-        totalSpent: 3680000,
-        lastOrderDate: '2023-12-28',
-        averageOrderValue: 160000,
-        loyaltyPoints: 368,
-        preferredProducts: ['Phở Bò', 'Bún Bò Huế', 'Chả Cá'],
-        notes: 'Khách hàng từng phản hồi về chất lượng'
-    },
-    {
-        id: 'CUST004',
-        fullName: 'Phạm Thị D',
-        email: 'phamthid@email.com',
-        phone: '0456789123',
-        address: '321 Điện Biên Phủ, Quận 10, TP.HCM',
-        joinDate: '2024-01-10',
-        status: 'blocked',
-        totalOrders: 3,
-        totalSpent: 195000,
-        lastOrderDate: '2024-01-12',
-        averageOrderValue: 65000,
-        loyaltyPoints: 0,
-        preferredProducts: [],
-        notes: 'Bị khóa do vi phạm chính sách thanh toán'
-    }
-];
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '../../components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 
 function getStatusBadge(status) {
     const config = {
@@ -123,28 +76,30 @@ function getCustomerTier(totalSpent) {
 }
 
 function CustomerCard({ customer, onView, onEdit, onToggleStatus }) {
-    const tier = getCustomerTier(customer.totalSpent);
+    const totalSpent = customer.stats?.totalSpent || 0;
+    const totalOrders = customer.stats?.totalOrders || 0;
+    const tier = getCustomerTier(totalSpent);
 
     return (
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onView(customer)}>
             <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <Avatar className="w-12 h-12">
-                            <AvatarFallback>{customer.fullName.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{customer.name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <h3 className="font-semibold text-lg">{customer.fullName}</h3>
+                            <h3 className="font-semibold text-lg">{customer.name}</h3>
                             <p className="text-sm text-gray-600">{customer.email}</p>
                         </div>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
                                 <MoreHorizontal className="w-4 h-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem onClick={() => onView(customer)}>
                                 <Eye className="w-4 h-4 mr-2" />
                                 Xem Chi Tiết
@@ -186,30 +141,30 @@ function CustomerCard({ customer, onView, onEdit, onToggleStatus }) {
                         </div>
                         <div className="flex items-center gap-2">
                             <ShoppingBag className="w-4 h-4 text-gray-500" />
-                            <span>{customer.totalOrders} đơn hàng</span>
+                            <span>{totalOrders} đơn hàng</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <DollarSign className="w-4 h-4 text-gray-500" />
-                            <span>{customer.totalSpent.toLocaleString()} VNĐ</span>
+                            <span>{totalSpent.toLocaleString()} VNĐ</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
-                            <span>Tham gia: {new Date(customer.joinDate).toLocaleDateString('vi-VN')}</span>
+                            <span>Tham gia: {new Date(customer.createdAt).toLocaleDateString('vi-VN')}</span>
                         </div>
                     </div>
 
-                    {customer.preferredProducts.length > 0 && (
+                    {customer.preferences?.favoriteDishes?.length > 0 && (
                         <div>
                             <p className="text-xs text-gray-500 mb-1">Sản phẩm yêu thích:</p>
                             <div className="flex flex-wrap gap-1">
-                                {customer.preferredProducts.slice(0, 2).map((product, index) => (
+                                {customer.preferences.favoriteDishes.slice(0, 2).map((dish, index) => (
                                     <Badge key={index} variant="secondary" className="text-xs">
-                                        {product}
+                                        {dish.name}
                                     </Badge>
                                 ))}
-                                {customer.preferredProducts.length > 2 && (
+                                {customer.preferences.favoriteDishes.length > 2 && (
                                     <Badge variant="secondary" className="text-xs">
-                                        +{customer.preferredProducts.length - 2}
+                                        +{customer.preferences.favoriteDishes.length - 2}
                                     </Badge>
                                 )}
                             </div>
@@ -222,59 +177,223 @@ function CustomerCard({ customer, onView, onEdit, onToggleStatus }) {
 }
 
 export default function AdminCustomers() {
-    const [customers, setCustomers] = useState(mockCustomers);
-    const [filteredCustomers, setFilteredCustomers] = useState(mockCustomers);
+    const [customers, setCustomers] = useState([]);
+    const [filteredCustomers, setFilteredCustomers] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [roleFilter, setRoleFilter] = useState('customer');
     const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [viewMode, setViewMode] = useState('cards'); // 'cards' hoặc 'table'
+    const [selectedCustomerDetail, setSelectedCustomerDetail] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        total: 0,
+        pages: 0
+    });
+    const [confirmDialog, setConfirmDialog] = useState({ open: false, customer: null, action: '' });
+    const [editDialog, setEditDialog] = useState({ open: false, customer: null });
+    const [editForm, setEditForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        roles: [],
+        status: 'active'
+    });
 
-    // Filter logic
+    // Fetch customers from API
+    const fetchCustomers = async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams({
+                page: pagination.page.toString(),
+                limit: pagination.limit.toString(),
+                role: roleFilter,
+            });
+
+            if (statusFilter !== 'all') {
+                params.append('status', statusFilter);
+            }
+
+            if (searchTerm) {
+                params.append('search', searchTerm);
+            }
+
+            const response = await apiClient.get(`/api/admin/users?${params.toString()}`);
+
+            if (response.success) {
+                // Fetch stats for each customer
+                const customersWithStats = await Promise.all(
+                    response.data.map(async (user) => {
+                        try {
+                            const detailResponse = await apiClient.post('/api/admin/users/detail', { id: user._id });
+                            return {
+                                ...user,
+                                stats: detailResponse.data?.stats,
+                                preferences: detailResponse.data?.preferences
+                            };
+                        } catch (error) {
+                            return {
+                                ...user,
+                                stats: { totalOrders: 0, completedOrders: 0, totalSpent: 0 },
+                                preferences: null
+                            };
+                        }
+                    })
+                );
+
+                setCustomers(customersWithStats);
+                setFilteredCustomers(customersWithStats);
+                setPagination(response.pagination);
+            }
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+            toast.error('Không thể tải danh sách khách hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Initial fetch
     useEffect(() => {
-        let filtered = customers;
+        fetchCustomers();
+    }, [pagination.page, statusFilter, roleFilter]);
 
-        if (searchTerm) {
-            filtered = filtered.filter(customer =>
-                customer.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.phone.includes(searchTerm)
-            );
-        }
+    // Search with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (pagination.page === 1) {
+                fetchCustomers();
+            } else {
+                setPagination(prev => ({ ...prev, page: 1 }));
+            }
+        }, 500);
 
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(customer => customer.status === statusFilter);
-        }
-
-        setFilteredCustomers(filtered);
-    }, [customers, searchTerm, statusFilter]);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
     const handleToggleStatus = (customer) => {
         const newStatus = customer.status === 'blocked' ? 'active' : 'blocked';
         const action = newStatus === 'blocked' ? 'khóa' : 'mở khóa';
 
-        if (window.confirm(`Bạn có chắc muốn ${action} tài khoản "${customer.fullName}"?`)) {
-            setCustomers(prev => prev.map(c =>
-                c.id === customer.id ? { ...c, status: newStatus } : c
-            ));
+        setConfirmDialog({
+            open: true,
+            customer,
+            action: newStatus,
+            message: `Bạn có chắc muốn ${action} tài khoản "${customer.name}"?`
+        });
+    };
+
+    const confirmToggleStatus = async () => {
+        const { customer, action } = confirmDialog;
+
+        try {
+            const response = await apiClient.put('/api/admin/users/status', {
+                id: customer._id,
+                status: action
+            });
+
+            if (response.success) {
+                toast.success(`Đã ${action === 'blocked' ? 'khóa' : 'mở khóa'} tài khoản thành công`);
+                fetchCustomers();
+                if (selectedCustomerDetail?._id === customer._id) {
+                    setSelectedCustomerDetail(null);
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling user status:', error);
+            toast.error(error.message || 'Không thể cập nhật trạng thái tài khoản');
+        } finally {
+            setConfirmDialog({ open: false, customer: null, action: '' });
         }
     };
 
     const handleEdit = (customer) => {
-        console.log('Edit customer:', customer);
-        // Implement edit functionality
+        setEditForm({
+            name: customer.name || customer.user?.name || '',
+            email: customer.email || customer.user?.email || '',
+            phone: customer.phone || customer.user?.phone || '',
+            roles: customer.roles || customer.user?.roles || ['customer'],
+            status: customer.status || customer.user?.status || 'active'
+        });
+        setEditDialog({ open: true, customer });
     };
 
-    const handleView = (customer) => {
-        setSelectedCustomer(customer);
+    const handleSaveEdit = async () => {
+        const customer = editDialog.customer;
+
+        try {
+            setLoading(true);
+
+            // Update roles if changed
+            const currentRoles = customer.roles || customer.user?.roles || [];
+            if (JSON.stringify(editForm.roles.sort()) !== JSON.stringify(currentRoles.sort())) {
+                await apiClient.put('/api/admin/users/roles', {
+                    id: customer._id,
+                    roles: editForm.roles
+                });
+            }
+
+            // Update status if changed
+            const currentStatus = customer.status || customer.user?.status;
+            if (editForm.status !== currentStatus) {
+                await apiClient.put('/api/admin/users/status', {
+                    id: customer._id,
+                    status: editForm.status
+                });
+            }
+
+            toast.success('Cập nhật thông tin khách hàng thành công');
+            setEditDialog({ open: false, customer: null });
+            fetchCustomers();
+
+            // Update detail view if open
+            if (selectedCustomerDetail?._id === customer._id) {
+                setSelectedCustomerDetail(null);
+            }
+        } catch (error) {
+            console.error('Error updating customer:', error);
+            toast.error(error.message || 'Không thể cập nhật thông tin khách hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleRole = (role) => {
+        setEditForm(prev => {
+            const roles = prev.roles.includes(role)
+                ? prev.roles.filter(r => r !== role)
+                : [...prev.roles, role];
+            return { ...prev, roles };
+        });
+    };
+
+    const handleView = async (customer) => {
+        try {
+            setLoading(true);
+            const response = await apiClient.post('/api/admin/users/detail', { id: customer._id });
+
+            if (response.success) {
+                setSelectedCustomerDetail({
+                    ...customer,
+                    ...response.data
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching customer detail:', error);
+            toast.error('Không thể tải thông tin chi tiết khách hàng');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Stats calculation
     const stats = {
-        total: customers.length,
+        total: pagination.total,
         active: customers.filter(c => c.status === 'active').length,
         inactive: customers.filter(c => c.status === 'inactive').length,
         blocked: customers.filter(c => c.status === 'blocked').length,
-        totalRevenue: customers.reduce((sum, c) => sum + c.totalSpent, 0)
+        totalRevenue: customers.reduce((sum, c) => sum + (c.stats?.totalSpent || 0), 0)
     };
 
     return (
@@ -285,10 +404,12 @@ export default function AdminCustomers() {
                     <h1 className="text-3xl font-bold text-gray-900">Quản Lý Khách Hàng</h1>
                     <p className="text-gray-600">Theo dõi và quản lý thông tin khách hàng</p>
                 </div>
-                <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Thêm Khách Hàng
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchCustomers} disabled={loading}>
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Làm Mới
+                    </Button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -387,18 +508,50 @@ export default function AdminCustomers() {
             </Card>
 
             {/* Customers Grid */}
-            {filteredCustomers.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredCustomers.map((customer) => (
-                        <CustomerCard
-                            key={customer.id}
-                            customer={customer}
-                            onView={handleView}
-                            onEdit={handleEdit}
-                            onToggleStatus={handleToggleStatus}
-                        />
-                    ))}
+            {loading ? (
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    <span className="ml-2 text-gray-600">Đang tải...</span>
                 </div>
+            ) : filteredCustomers.length > 0 ? (
+                <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredCustomers.map((customer) => (
+                            <CustomerCard
+                                key={customer._id}
+                                customer={customer}
+                                onView={handleView}
+                                onEdit={handleEdit}
+                                onToggleStatus={handleToggleStatus}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {pagination.pages > 1 && (
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-600">
+                                Hiển thị {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} / {pagination.total} khách hàng
+                            </p>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                                    disabled={pagination.page === 1 || loading}
+                                >
+                                    Trang trước
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                                    disabled={pagination.page === pagination.pages || loading}
+                                >
+                                    Trang sau
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </>
             ) : (
                 <Card>
                     <CardContent className="text-center py-12">
@@ -416,142 +569,287 @@ export default function AdminCustomers() {
             )}
 
             {/* Customer Detail Modal */}
-            {selectedCustomer && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">Chi Tiết Khách Hàng</h2>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)}>
-                                ×
-                            </Button>
-                        </div>
+            <Dialog open={!!selectedCustomerDetail} onOpenChange={() => setSelectedCustomerDetail(null)}>
+                <DialogContent className="!max-w-[50vw] !w-[50vw] max-h-[92vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">Chi Tiết Khách Hàng</DialogTitle>
+                    </DialogHeader>
 
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="w-16 h-16">
-                                        <AvatarFallback className="text-xl">
-                                            {selectedCustomer.fullName.charAt(0)}
+                    {selectedCustomerDetail && (
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-5">
+                                <div className="flex items-center gap-5">
+                                    <Avatar className="w-20 h-20">
+                                        <AvatarFallback className="text-2xl">
+                                            {selectedCustomerDetail.user?.name?.charAt(0) || selectedCustomerDetail.name?.charAt(0) || 'U'}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <h3 className="text-xl font-bold">{selectedCustomer.fullName}</h3>
-                                        <div className="flex gap-2 mt-1">
-                                            {getStatusBadge(selectedCustomer.status)}
+                                        <h3 className="text-2xl font-bold">
+                                            {selectedCustomerDetail.user?.name || selectedCustomerDetail.name}
+                                        </h3>
+                                        <div className="flex gap-2 mt-2">
+                                            {getStatusBadge(selectedCustomerDetail.user?.status || selectedCustomerDetail.status)}
                                             {(() => {
-                                                const tier = getCustomerTier(selectedCustomer.totalSpent);
+                                                const totalSpent = selectedCustomerDetail.stats?.totalSpent || 0;
+                                                const tier = getCustomerTier(totalSpent);
                                                 return <Badge className={tier.color}>{tier.label}</Badge>;
                                             })()}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Email:</label>
-                                        <p>{selectedCustomer.email}</p>
+                                        <label className="text-base font-medium text-gray-600">Email:</label>
+                                        <p className="text-base mt-1">{selectedCustomerDetail.user?.email || selectedCustomerDetail.email}</p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Số điện thoại:</label>
-                                        <p>{selectedCustomer.phone}</p>
+                                        <label className="text-base font-medium text-gray-600">Số điện thoại:</label>
+                                        <p className="text-base mt-1">{selectedCustomerDetail.user?.phone || selectedCustomerDetail.phone}</p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Địa chỉ:</label>
-                                        <p>{selectedCustomer.address}</p>
+                                        <label className="text-base font-medium text-gray-600">Vai trò:</label>
+                                        <div className="flex gap-2 mt-2">
+                                            {(selectedCustomerDetail.user?.roles || selectedCustomerDetail.roles || []).map((role, index) => (
+                                                <Badge key={index} variant="outline" className="text-sm">{role}</Badge>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Ngày tham gia:</label>
-                                        <p>{new Date(selectedCustomer.joinDate).toLocaleDateString('vi-VN')}</p>
+                                        <label className="text-base font-medium text-gray-600">Ngày tham gia:</label>
+                                        <p className="text-base mt-1">{new Date(selectedCustomerDetail.user?.createdAt || selectedCustomerDetail.createdAt).toLocaleDateString('vi-VN')}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div className="grid grid-cols-2 gap-4">
                                     <Card>
-                                        <CardContent className="p-4 text-center">
-                                            <p className="text-2xl font-bold text-blue-600">{selectedCustomer.totalOrders}</p>
-                                            <p className="text-sm text-gray-600">Tổng đơn hàng</p>
+                                        <CardContent className="p-5 text-center">
+                                            <p className="text-3xl font-bold text-blue-600">
+                                                {selectedCustomerDetail.stats?.totalOrders || 0}
+                                            </p>
+                                            <p className="text-base text-gray-600 mt-1">Tổng đơn hàng</p>
                                         </CardContent>
                                     </Card>
                                     <Card>
-                                        <CardContent className="p-4 text-center">
-                                            <p className="text-2xl font-bold text-green-600">
-                                                {(selectedCustomer.totalSpent / 1000000).toFixed(1)}M
+                                        <CardContent className="p-5 text-center">
+                                            <p className="text-3xl font-bold text-green-600">
+                                                {((selectedCustomerDetail.stats?.totalSpent || 0) / 1000000).toFixed(1)}M
                                             </p>
-                                            <p className="text-sm text-gray-600">Tổng chi tiêu</p>
+                                            <p className="text-base text-gray-600 mt-1">Tổng chi tiêu</p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardContent className="p-5 text-center">
+                                            <p className="text-3xl font-bold text-purple-600">
+                                                {selectedCustomerDetail.stats?.completedOrders || 0}
+                                            </p>
+                                            <p className="text-base text-gray-600 mt-1">Đơn hoàn thành</p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardContent className="p-5 text-center">
+                                            <p className="text-3xl font-bold text-orange-600">
+                                                {selectedCustomerDetail.stats?.totalOrders > 0
+                                                    ? ((selectedCustomerDetail.stats?.totalSpent || 0) / selectedCustomerDetail.stats.totalOrders / 1000).toFixed(0)
+                                                    : 0}k
+                                            </p>
+                                            <p className="text-base text-gray-600 mt-1">Giá trị TB</p>
                                         </CardContent>
                                     </Card>
                                 </div>
 
-                                <div>
-                                    <label className="text-sm font-medium text-gray-600">Giá trị đơn hàng trung bình:</label>
-                                    <p className="text-lg font-medium">
-                                        {selectedCustomer.averageOrderValue.toLocaleString()} VNĐ
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium text-gray-600">Điểm tích lũy:</label>
-                                    <p className="text-lg font-medium text-purple-600">{selectedCustomer.loyaltyPoints} điểm</p>
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium text-gray-600">Lần mua cuối:</label>
-                                    <p>{new Date(selectedCustomer.lastOrderDate).toLocaleDateString('vi-VN')}</p>
-                                </div>
-
-                                {selectedCustomer.preferredProducts.length > 0 && (
+                                {selectedCustomerDetail.preferences?.favoriteDishes?.length > 0 && (
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Sản phẩm yêu thích:</label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            {selectedCustomer.preferredProducts.map((product, index) => (
-                                                <Badge key={index} variant="secondary">
-                                                    {product}
+                                        <label className="text-base font-medium text-gray-600">Sản phẩm yêu thích:</label>
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            {selectedCustomerDetail.preferences.favoriteDishes.map((dish, index) => (
+                                                <Badge key={index} variant="secondary" className="text-sm px-3 py-1">
+                                                    {dish.name}
                                                 </Badge>
                                             ))}
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
 
-                                {selectedCustomer.notes && (
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-600">Ghi chú:</label>
-                                        <p className="p-3 bg-gray-50 rounded mt-1">{selectedCustomer.notes}</p>
-                                    </div>
-                                )}
+                    <div className="flex gap-3 pt-6 mt-6 border-t">
+                        <Button onClick={() => handleEdit(selectedCustomerDetail)} className="flex-1 h-11 text-base">
+                            <Edit className="w-5 h-5 mr-2" />
+                            Chỉnh Sửa
+                        </Button>
+                        <Button
+                            variant={selectedCustomerDetail?.status === 'blocked' ? 'default' : 'destructive'}
+                            onClick={() => {
+                                handleToggleStatus(selectedCustomerDetail);
+                            }}
+                            className="h-11 text-base px-6"
+                        >
+                            {selectedCustomerDetail?.status === 'blocked' ? (
+                                <>
+                                    <CheckCircle className="w-5 h-5 mr-2" />
+                                    Mở Khóa
+                                </>
+                            ) : (
+                                <>
+                                    <Ban className="w-5 h-5 mr-2" />
+                                    Khóa Tài Khoản
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Customer Dialog */}
+            <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog({ open: false, customer: null })}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl">Chỉnh Sửa Thông Tin Khách Hàng</DialogTitle>
+                        <DialogDescription>
+                            Cập nhật vai trò và trạng thái tài khoản
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 py-4">
+                        {/* Customer Info - Read Only */}
+                        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="w-12 h-12">
+                                    <AvatarFallback>
+                                        {editForm.name?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold text-lg">{editForm.name}</p>
+                                    <p className="text-sm text-gray-600">{editForm.email}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Phone className="w-4 h-4" />
+                                <span>{editForm.phone}</span>
                             </div>
                         </div>
 
-                        <div className="flex gap-2 pt-6 mt-6 border-t">
-                            <Button onClick={() => handleEdit(selectedCustomer)} className="flex-1">
-                                <Edit className="w-4 h-4 mr-2" />
-                                Chỉnh Sửa
-                            </Button>
-                            <Button
-                                variant={selectedCustomer.status === 'blocked' ? 'default' : 'outline'}
-                                onClick={() => handleToggleStatus(selectedCustomer)}
-                                className={selectedCustomer.status === 'blocked'
-                                    ? 'text-green-600 hover:text-green-700'
-                                    : 'text-red-600 hover:text-red-700'
-                                }
-                            >
-                                {selectedCustomer.status === 'blocked' ? (
-                                    <>
-                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                        Mở Khóa
-                                    </>
-                                ) : (
-                                    <>
-                                        <Ban className="w-4 h-4 mr-2" />
-                                        Khóa Tài Khoản
-                                    </>
-                                )}
-                            </Button>
+                        {/* Roles Selection */}
+                        <div className="space-y-3">
+                            <label className="text-base font-medium text-gray-900">Vai Trò</label>
+                            <div className="flex flex-wrap gap-3">
+                                <div
+                                    onClick={() => toggleRole('customer')}
+                                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 cursor-pointer transition-all ${editForm.roles.includes('customer')
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${editForm.roles.includes('customer') ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                                        }`}>
+                                        {editForm.roles.includes('customer') && (
+                                            <CheckCircle className="w-4 h-4 text-white" />
+                                        )}
+                                    </div>
+                                    <User className="w-4 h-4" />
+                                    <span className="font-medium">Customer</span>
+                                </div>
+
+                                <div
+                                    onClick={() => toggleRole('admin')}
+                                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 cursor-pointer transition-all ${editForm.roles.includes('admin')
+                                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${editForm.roles.includes('admin') ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
+                                        }`}>
+                                        {editForm.roles.includes('admin') && (
+                                            <CheckCircle className="w-4 h-4 text-white" />
+                                        )}
+                                    </div>
+                                    <UserPlus className="w-4 h-4" />
+                                    <span className="font-medium">Admin</span>
+                                </div>
+                            </div>
+                            {editForm.roles.length === 0 && (
+                                <p className="text-sm text-red-600">Vui lòng chọn ít nhất một vai trò</p>
+                            )}
+                        </div>
+
+                        {/* Status Selection */}
+                        <div className="space-y-3">
+                            <label className="text-base font-medium text-gray-900">Trạng Thái Tài Khoản</label>
+                            <Select value={editForm.status} onValueChange={(value) => setEditForm(prev => ({ ...prev, status: value }))}>
+                                <SelectTrigger className="w-full h-12">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="active">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                            <span>Hoạt động</span>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="blocked">
+                                        <div className="flex items-center gap-2">
+                                            <Ban className="w-4 h-4 text-red-600" />
+                                            <span>Bị khóa</span>
+                                        </div>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
-                </div>
-            )}
+
+                    <div className="flex gap-3 pt-4 border-t">
+                        <Button
+                            variant="outline"
+                            onClick={() => setEditDialog({ open: false, customer: null })}
+                            className="flex-1 h-11"
+                            disabled={loading}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            onClick={handleSaveEdit}
+                            className="flex-1 h-11"
+                            disabled={loading || editForm.roles.length === 0}
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Đang lưu...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Lưu Thay Đổi
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirmation Dialog */}
+            <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ open: false, customer: null, action: '' })}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Xác nhận hành động</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirmDialog.message}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmToggleStatus}>
+                            Xác nhận
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

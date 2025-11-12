@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     BarChart,
     Bar,
@@ -22,7 +22,8 @@ import {
     Users,
     Calendar,
     Download,
-    Filter
+    Filter,
+    Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -34,6 +35,8 @@ import {
     SelectValue
 } from '../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { toast } from 'sonner';
+import apiClient from '../../lib/api';
 
 // Mock data
 const monthlyRevenueData = [
@@ -112,10 +115,128 @@ function StatCard({ title, value, change, icon: Icon, color = "blue", prefix = "
 export default function AdminReports() {
     const [timeRange, setTimeRange] = useState('month');
     const [selectedTab, setSelectedTab] = useState('overview');
+    const [loading, setLoading] = useState(true);
+
+    // State for API data
+    const [revenueData, setRevenueData] = useState(null);
+    const [orderStatistics, setOrderStatistics] = useState(null);
+    const [dashboardOverview, setDashboardOverview] = useState(null);
 
     const formatCurrency = (amount) => {
         return (amount / 1000000).toFixed(1) + 'M VNĐ';
     };
+
+    // Fetch revenue reports
+    const fetchRevenueReports = async () => {
+        try {
+            const params = {};
+            const today = new Date();
+
+            if (timeRange === 'week') {
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                params.startDate = weekAgo.toISOString();
+                params.groupBy = 'day';
+            } else if (timeRange === 'month') {
+                const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                params.startDate = monthAgo.toISOString();
+                params.groupBy = 'day';
+            } else if (timeRange === 'quarter') {
+                const quarterAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+                params.startDate = quarterAgo.toISOString();
+                params.groupBy = 'day';
+            } else if (timeRange === 'year') {
+                const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+                params.startDate = yearAgo.toISOString();
+                params.groupBy = 'month';
+            }
+
+            const response = await apiClient.get('/api/admin/reports/revenue', { params });
+            if (response.success) {
+                setRevenueData(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching revenue reports:', error);
+            toast.error('Không thể tải báo cáo doanh thu');
+        }
+    };
+
+    // Fetch order statistics
+    const fetchOrderStatistics = async () => {
+        try {
+            const params = {};
+            const today = new Date();
+
+            if (timeRange === 'week') {
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                params.startDate = weekAgo.toISOString();
+            } else if (timeRange === 'month') {
+                const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                params.startDate = monthAgo.toISOString();
+            } else if (timeRange === 'quarter') {
+                const quarterAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+                params.startDate = quarterAgo.toISOString();
+            } else if (timeRange === 'year') {
+                const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+                params.startDate = yearAgo.toISOString();
+            }
+
+            const response = await apiClient.get('/api/admin/reports/orders', { params });
+            if (response.success) {
+                const defaultPaymentMethods = [
+                    { _id: 'cash', count: 0, total: 0 },
+                    { _id: 'momo', count: 0, total: 0 },
+                    { _id: 'zalopay', count: 0, total: 0 }
+                ];
+
+                const apiPaymentMethods = response.data.paymentMethodDistribution || [];
+
+                const mergedPaymentMethods = defaultPaymentMethods.map(defaultMethod => {
+                    const apiMethod = apiPaymentMethods.find(m => m._id === defaultMethod._id);
+                    return apiMethod || defaultMethod;
+                });
+
+                apiPaymentMethods.forEach(apiMethod => {
+                    if (!defaultPaymentMethods.find(dm => dm._id === apiMethod._id)) {
+                        mergedPaymentMethods.push(apiMethod);
+                    }
+                });
+
+                setOrderStatistics({
+                    ...response.data,
+                    paymentMethodDistribution: mergedPaymentMethods
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching order statistics:', error);
+            toast.error('Không thể tải thống kê đơn hàng');
+        }
+    };
+
+    // Fetch dashboard overview
+    const fetchDashboardOverview = async () => {
+        try {
+            const response = await apiClient.get('/api/admin/dashboard');
+            if (response.success) {
+                setDashboardOverview(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching dashboard overview:', error);
+            toast.error('Không thể tải tổng quan dashboard');
+        }
+    };
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            await Promise.all([
+                fetchRevenueReports(),
+                fetchOrderStatistics(),
+                fetchDashboardOverview()
+            ]);
+            setLoading(false);
+        };
+        loadData();
+    }, [timeRange]);
 
     return (
         <div className="space-y-6">
@@ -145,37 +266,59 @@ export default function AdminReports() {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                    title="Tổng Doanh Thu"
-                    value={formatCurrency(312500000)}
-                    change={18.2}
-                    icon={DollarSign}
-                    color="green"
-                />
-                <StatCard
-                    title="Đơn Hàng"
-                    value="2,847"
-                    change={12.5}
-                    icon={ShoppingCart}
-                    color="blue"
-                />
-                <StatCard
-                    title="Khách Hàng Mới"
-                    value="186"
-                    change={8.7}
-                    icon={Users}
-                    color="purple"
-                />
-                <StatCard
-                    title="Doanh Thu Trung Bình"
-                    value="109"
-                    change={-2.1}
-                    icon={TrendingUp}
-                    color="orange"
-                    suffix="K VNĐ"
-                />
-            </div>
+            {loading ? (
+                <div className="flex justify-center items-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+            ) : dashboardOverview && (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Tổng Doanh Thu</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(dashboardOverview.totalRevenue || 0)}</p>
+                                </div>
+                                <DollarSign className="h-8 w-8 text-green-600" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Đơn Hàng</p>
+                                    <p className="text-2xl font-bold">{dashboardOverview.totalOrders || 0}</p>
+                                    <p className="text-xs text-gray-500 mt-1">Hôm nay: {dashboardOverview.todayOrders || 0}</p>
+                                </div>
+                                <ShoppingCart className="h-8 w-8 text-blue-600" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Tổng Khách Hàng</p>
+                                    <p className="text-2xl font-bold">{dashboardOverview.totalUsers || 0}</p>
+                                </div>
+                                <Users className="h-8 w-8 text-purple-600" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Đơn Chờ Xử Lý</p>
+                                    <p className="text-2xl font-bold">{dashboardOverview.pendingOrders || 0}</p>
+                                </div>
+                                <TrendingUp className="h-8 w-8 text-orange-600" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             {/* Tabs */}
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
@@ -189,82 +332,113 @@ export default function AdminReports() {
                 {/* Overview Tab */}
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid gap-6 md:grid-cols-2">
-                        {/* Monthly Revenue Trend */}
+                        {/* Revenue Trend */}
                         <Card className="col-span-2">
                             <CardHeader>
-                                <CardTitle>Xu Hướng Doanh Thu Theo Tháng</CardTitle>
-                                <CardDescription>Doanh thu và số đơn hàng 12 tháng qua</CardDescription>
+                                <CardTitle>Xu Hướng Doanh Thu</CardTitle>
+                                <CardDescription>
+                                    {revenueData?.summary && `Tổng doanh thu: ${formatCurrency(revenueData.summary.totalRevenue)} - ${revenueData.summary.totalOrders} đơn hàng`}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={monthlyRevenueData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="month" />
-                                        <YAxis />
-                                        <Tooltip
-                                            formatter={(value, name) => [
-                                                name === 'revenue' ? formatCurrency(value) : value,
-                                                name === 'revenue' ? 'Doanh thu' : 'Đơn hàng'
-                                            ]}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="revenue"
-                                            stroke="#3b82f6"
-                                            fill="#3b82f6"
-                                            fillOpacity={0.1}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="orders"
-                                            stroke="#10b981"
-                                            strokeWidth={2}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[300px]">
+                                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                    </div>
+                                ) : revenueData?.breakdown?.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <AreaChart data={revenueData.breakdown}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="_id" />
+                                            <YAxis />
+                                            <Tooltip
+                                                formatter={(value, name) => {
+                                                    if (name === 'totalRevenue') return [formatCurrency(value), 'Doanh thu'];
+                                                    if (name === 'orderCount') return [value, 'Đơn hàng'];
+                                                    return [value, name];
+                                                }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="totalRevenue"
+                                                stroke="#3b82f6"
+                                                fill="#3b82f6"
+                                                fillOpacity={0.1}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="orderCount"
+                                                stroke="#10b981"
+                                                strokeWidth={2}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
-                        {/* Daily Orders */}
+                        {/* Order Status Distribution */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Đơn Hàng Theo Ngày</CardTitle>
-                                <CardDescription>Phân bố đơn hàng trong tuần</CardDescription>
+                                <CardTitle>Phân Bố Trạng Thái Đơn Hàng</CardTitle>
+                                <CardDescription>Tình trạng các đơn hàng</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <BarChart data={dailyOrderData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="day" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Bar dataKey="orders" fill="#8884d8" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[250px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : orderStatistics?.statusDistribution?.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <BarChart data={orderStatistics.statusDistribution}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="_id" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Bar dataKey="count" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[250px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
-                        {/* Hourly Orders */}
+                        {/* Payment Method Distribution */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Đơn Hàng Theo Giờ</CardTitle>
-                                <CardDescription>Phân bố đơn hàng trong ngày</CardDescription>
+                                <CardTitle>Phương Thức Thanh Toán</CardTitle>
+                                <CardDescription>Phân bố theo phương thức</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <LineChart data={hourlyOrderData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="hour" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="orders"
-                                            stroke="#f59e0b"
-                                            strokeWidth={2}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[250px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {orderStatistics?.paymentMethodDistribution?.map((method, index) => (
+                                            <div
+                                                key={index}
+                                                className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg ${method.count === 0 ? 'opacity-50' : ''}`}
+                                            >
+                                                <div>
+                                                    <p className="font-medium capitalize">{method._id}</p>
+                                                    <p className="text-sm text-gray-600">{method.count} đơn hàng</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-medium">{formatCurrency(method.total)}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -278,20 +452,30 @@ export default function AdminReports() {
                                 <CardTitle>Doanh Thu Chi Tiết</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={350}>
-                                    <LineChart data={monthlyRevenueData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="month" />
-                                        <YAxis />
-                                        <Tooltip formatter={(value) => formatCurrency(value)} />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="revenue"
-                                            stroke="#10b981"
-                                            strokeWidth={3}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[350px]">
+                                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                    </div>
+                                ) : revenueData?.breakdown?.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={350}>
+                                        <LineChart data={revenueData.breakdown}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="_id" />
+                                            <YAxis />
+                                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="totalRevenue"
+                                                stroke="#10b981"
+                                                strokeWidth={3}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[350px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -300,24 +484,44 @@ export default function AdminReports() {
                                 <CardTitle>Thống Kê Doanh Thu</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="space-y-3">
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Tháng cao nhất:</span>
-                                        <span className="font-medium">42.8M VNĐ</span>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[200px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Tháng thấp nhất:</span>
-                                        <span className="font-medium">12.5M VNĐ</span>
+                                ) : revenueData?.summary ? (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">Tổng doanh thu:</span>
+                                            <span className="font-medium">{formatCurrency(revenueData.summary.totalRevenue)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">Tổng đơn hàng:</span>
+                                            <span className="font-medium">{revenueData.summary.totalOrders}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-gray-600">Trung bình/đơn:</span>
+                                            <span className="font-medium">{formatCurrency(revenueData.summary.averageOrderValue)}</span>
+                                        </div>
+                                        {revenueData.breakdown?.length > 0 && (
+                                            <>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-600">Cao nhất:</span>
+                                                    <span className="font-medium">
+                                                        {formatCurrency(Math.max(...revenueData.breakdown.map(d => d.totalRevenue)))}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-600">Thấp nhất:</span>
+                                                    <span className="font-medium">
+                                                        {formatCurrency(Math.min(...revenueData.breakdown.map(d => d.totalRevenue)))}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Trung bình/tháng:</span>
-                                        <span className="font-medium">26.8M VNĐ</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-sm text-gray-600">Tăng trưởng:</span>
-                                        <span className="font-medium text-green-600">+242.4%</span>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <div className="text-center text-gray-500 py-8">Không có dữ liệu</div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -329,49 +533,60 @@ export default function AdminReports() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Top Sản Phẩm Bán Chạy</CardTitle>
-                                <CardDescription>Theo doanh thu</CardDescription>
+                                <CardDescription>Top 10 món ăn theo số lượng</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={topProductsData}
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={100}
-                                            fill="#8884d8"
-                                            dataKey="percentage"
-                                            label={({ name, percentage }) => `${name}: ${percentage}%`}
-                                        >
-                                            {topProductsData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={`hsl(${index * 72}, 70%, 50%)`} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[300px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : orderStatistics?.topDishes?.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={orderStatistics.topDishes.slice(0, 5)} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis type="number" />
+                                            <YAxis dataKey="name" type="category" width={100} />
+                                            <Tooltip />
+                                            <Bar dataKey="totalQuantity" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
                                 <CardTitle>Chi Tiết Sản Phẩm</CardTitle>
+                                <CardDescription>Doanh thu và số lượng bán</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    {topProductsData.map((product, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <p className="font-medium">{product.name}</p>
-                                                <p className="text-sm text-gray-600">{product.orders} đơn hàng</p>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[300px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : orderStatistics?.topDishes?.length > 0 ? (
+                                    <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                                        {orderStatistics.topDishes.map((product, index) => (
+                                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                <div>
+                                                    <p className="font-medium">{product.name || 'N/A'}</p>
+                                                    <p className="text-sm text-gray-600">Số lượng: {product.totalQuantity}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-medium">{formatCurrency(product.totalRevenue)}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="font-medium">{formatCurrency(product.revenue)}</p>
-                                                <p className="text-sm text-gray-600">{product.percentage}%</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -382,50 +597,84 @@ export default function AdminReports() {
                     <div className="grid gap-6 md:grid-cols-2">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Phân Khúc Khách Hàng</CardTitle>
-                                <CardDescription>Theo tần suất mua hàng</CardDescription>
+                                <CardTitle>Thống Kê Khách Hàng</CardTitle>
+                                <CardDescription>Tổng quan về khách hàng</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={customerSegmentData}
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={100}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                            label={({ name, value }) => `${name}: ${value}%`}
-                                        >
-                                            {customerSegmentData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[300px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : orderStatistics?.customerStats ? (
+                                    <div className="space-y-6 py-8">
+                                        <div className="text-center">
+                                            <p className="text-sm text-gray-600 mb-2">Tổng số khách hàng</p>
+                                            <p className="text-4xl font-bold text-blue-600">
+                                                {orderStatistics.customerStats.totalCustomers || 0}
+                                            </p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm text-gray-600 mb-2">Trung bình đơn hàng/khách</p>
+                                            <p className="text-4xl font-bold text-green-600">
+                                                {orderStatistics.customerStats.avgOrdersPerCustomer?.toFixed(1) || 0}
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                                            <div className="text-center p-4 bg-blue-50 rounded-lg">
+                                                <p className="text-sm text-gray-600 mb-1">Tổng đơn hàng</p>
+                                                <p className="text-2xl font-bold">
+                                                    {orderStatistics.statusDistribution?.reduce((sum, s) => sum + s.count, 0) || 0}
+                                                </p>
+                                            </div>
+                                            <div className="text-center p-4 bg-green-50 rounded-lg">
+                                                <p className="text-sm text-gray-600 mb-1">Đơn hoàn thành</p>
+                                                <p className="text-2xl font-bold">
+                                                    {orderStatistics.statusDistribution?.find(s => s._id === 'completed')?.count || 0}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
-                                <CardTitle>Tăng Trưởng Khách Hàng</CardTitle>
+                                <CardTitle>Phân Bố Trạng Thái Đơn</CardTitle>
+                                <CardDescription>Chi tiết theo trạng thái</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <LineChart data={monthlyRevenueData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="month" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="customers"
-                                            stroke="#8b5cf6"
-                                            strokeWidth={2}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                {loading ? (
+                                    <div className="flex justify-center items-center h-[300px]">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : orderStatistics?.statusDistribution?.length > 0 ? (
+                                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                        {orderStatistics.statusDistribution.map((status, index) => {
+                                            const total = orderStatistics.statusDistribution.reduce((sum, s) => sum + s.count, 0);
+                                            const percentage = ((status.count / total) * 100).toFixed(1);
+                                            return (
+                                                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <div>
+                                                        <p className="font-medium capitalize">{status._id}</p>
+                                                        <p className="text-sm text-gray-600">{status.count} đơn hàng</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="font-bold text-lg">{percentage}%</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        Không có dữ liệu
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

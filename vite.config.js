@@ -12,6 +12,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["localhost", "emissions-progressive-tin-louis.trycloudflare.com"],
+    allowedHosts: ["localhost", "https://provinces-unless-uri-entertainment.trycloudflare.com"],
   }
 })

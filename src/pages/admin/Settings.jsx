@@ -55,27 +55,31 @@ export default function AdminSettings() {
         const fetchUserProfile = async () => {
             try {
                 setProfileLoading(true);
-                const response = await apiClient.get('/api/auth/me');
+                const response = await apiClient.get('/api/users/profile');
 
-                // Map API data to profile state
-                setProfile(prev => ({
-                    ...prev,
-                    fullName: response.name || 'Admin User',
-                    email: response.email || '',
-                    phone: response.phone || '+84 123 456 789',
-                    // Keep avatar, passwords as empty/null since they're not in API
-                }));
+                if (response.success) {
+                    // Map API data to profile state
+                    setProfile(prev => ({
+                        ...prev,
+                        fullName: response.data.user.name || '',
+                        email: response.data.user.email || '',
+                        phone: response.data.user.phone || '',
+                    }));
+                }
             } catch (error) {
                 console.error('Error fetching user profile:', error);
                 toast.error('Không thể tải thông tin người dùng');
 
-                // Fallback to default values
-                setProfile(prev => ({
-                    ...prev,
-                    fullName: 'Admin User',
-                    email: 'admin@foodiehub.com',
-                    phone: '+84 123 456 789'
-                }));
+                // Fallback to localStorage
+                const user = authService.getCurrentUser();
+                if (user) {
+                    setProfile(prev => ({
+                        ...prev,
+                        fullName: user.name || '',
+                        email: user.email || '',
+                        phone: user.phone || '',
+                    }));
+                }
             } finally {
                 setProfileLoading(false);
             }
@@ -122,41 +126,49 @@ export default function AdminSettings() {
     const handleProfileUpdate = async () => {
         setLoading(true);
         try {
-            // Validate password if user wants to change it
-            if (profile.newPassword && profile.newPassword !== profile.confirmPassword) {
-                toast.error('Mật khẩu xác nhận không khớp!');
-                setLoading(false);
-                return;
+            // Update profile (name, phone)
+            if (profile.fullName || profile.phone) {
+                const response = await apiClient.patch('/api/users/profile', {
+                    name: profile.fullName,
+                    phone: profile.phone
+                });
+
+                if (response.success) {
+                    // Update localStorage
+                    localStorage.setItem('user', JSON.stringify(response.data));
+                    toast.success('Cập nhật thông tin thành công!');
+                }
             }
 
-            // Prepare update data
-            const updateData = {
-                name: profile.fullName,
-                email: profile.email,
-                phone: profile.phone
-            };
-
-            // Add password to update if provided
+            // Change password if provided
             if (profile.newPassword) {
-                updateData.currentPassword = profile.currentPassword;
-                updateData.newPassword = profile.newPassword;
+                if (profile.newPassword !== profile.confirmPassword) {
+                    toast.error('Mật khẩu xác nhận không khớp!');
+                    setLoading(false);
+                    return;
+                }
+
+                if (!profile.currentPassword) {
+                    toast.error('Vui lòng nhập mật khẩu hiện tại!');
+                    setLoading(false);
+                    return;
+                }
+
+                await apiClient.post('/api/users/change-password', {
+                    currentPassword: profile.currentPassword,
+                    newPassword: profile.newPassword
+                });
+
+                toast.success('Đổi mật khẩu thành công!');
+
+                // Clear password fields after successful update
+                setProfile(prev => ({
+                    ...prev,
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                }));
             }
-
-            // Call API to update profile (adjust endpoint as needed)
-            // await apiClient.put('/auth/profile', updateData);
-
-            // For now, simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            toast.success('Cập nhật thông tin thành công!');
-
-            // Clear password fields after successful update
-            setProfile(prev => ({
-                ...prev,
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            }));
         } catch (error) {
             console.error('Error updating profile:', error);
             toast.error(error.message || 'Có lỗi xảy ra khi cập nhật!');
