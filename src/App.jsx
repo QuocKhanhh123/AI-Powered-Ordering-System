@@ -32,6 +32,7 @@ import Header from './components/layout/header';
 import Footer from './components/layout/footer';
 import { AdminLayout } from './components/layout/admin-layout';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ChatBot from './components/ChatBot';
 import { Toaster } from 'sonner';
 import './App.css';
 
@@ -39,6 +40,7 @@ import './App.css';
 const CustomerApp = () => (
   <div>
     <Header />
+    <ChatBot />
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/menu" element={<Menu />} />
@@ -86,26 +88,29 @@ const CustomerApp = () => (
 
 // Component cho Admin Routes
 const AdminApp = () => (
-  <Routes>
-    <Route path="/admin/*" element={
-      <ProtectedRoute role="admin">
-        <AdminLayout>
-          <Routes>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="reports" element={<AdminReports />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Routes>
-        </AdminLayout>
-      </ProtectedRoute>
-    } />
-    <Route path="/unauthorized" element={<Unauthorized />} />
-    <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-    <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-  </Routes>
+  <>
+    <ChatBot />
+    <Routes>
+      <Route path="/admin/*" element={
+        <ProtectedRoute role="admin">
+          <AdminLayout>
+            <Routes>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Routes>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+    </Routes>
+  </>
 );
 
 function App() {

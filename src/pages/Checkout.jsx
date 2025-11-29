@@ -20,7 +20,7 @@ export default function Checkout() {
     const [user, setUser] = useState(null)
 
     const [formData, setFormData] = useState({
-        fullName: "",
+        name: "",
         phone: "",
         pickupTime: "",
         notes: "",
@@ -65,7 +65,7 @@ export default function Checkout() {
             if (currentUser) {
                 setFormData(prev => ({
                     ...prev,
-                    fullName: currentUser.name || "",
+                    name: currentUser.name || "",
                     phone: currentUser.phone || "",
                 }))
             }
@@ -97,7 +97,7 @@ export default function Checkout() {
     }
 
     const validateForm = () => {
-        if (!formData.fullName.trim()) {
+        if (!formData.name.trim()) {
             toast.error('Vui lòng nhập họ tên')
             return false
         }
@@ -120,6 +120,9 @@ export default function Checkout() {
         e.preventDefault()
 
         if (!validateForm()) return
+
+        // Prevent multiple submissions
+        if (submitting) return
 
         setSubmitting(true)
 
@@ -152,20 +155,16 @@ export default function Checkout() {
             if (transactionId) {
                 localStorage.setItem('lastTransactionId', transactionId)
             }
-
-            // Step 3: Show success and redirect
-            toast.success('Khởi tạo thanh toán thành công!', {
-                description: 'Đang chuyển đến ZaloPay...',
-                duration: 3000
-            })
-
-            // Clear cart event
-            window.dispatchEvent(new Event('cartUpdated'))
-
-            // Redirect to ZaloPay immediately
-            setTimeout(() => {
-                window.location.href = orderUrl
-            }, 1500)
+            const safeRedirectToZalo = (url) => {
+                const a = document.createElement("a")
+                a.href = url
+                a.target = "_self"
+                a.rel = "noreferrer"
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+            }
+            safeRedirectToZalo(orderUrl)
 
         } catch (error) {
             console.error('Error creating order:', error)
@@ -222,16 +221,16 @@ export default function Checkout() {
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="fullName">
+                                            <Label htmlFor="name">
                                                 Họ và tên <span className="text-red-500">*</span>
                                             </Label>
                                             <div className="relative">
                                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                                 <Input
-                                                    id="fullName"
+                                                    id="name"
                                                     placeholder="Nhập họ tên"
-                                                    value={formData.fullName}
-                                                    onChange={(e) => handleInputChange("fullName", e.target.value)}
+                                                    value={formData.name}
+                                                    onChange={(e) => handleInputChange("name", e.target.value)}
                                                     className="pl-10"
                                                     required
                                                 />
@@ -304,16 +303,6 @@ export default function Checkout() {
                                                 <div className="text-sm text-muted-foreground">
                                                     Quét mã QR hoặc chuyển khoản qua ZaloPay
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 p-3 bg-white rounded-lg border">
-                                            <p className="text-sm font-medium mb-2">Thông tin thanh toán:</p>
-                                            <div className="space-y-1 text-sm">
-                                                <p>📱 Số ZaloPay: <span className="font-semibold">0123 456 789</span></p>
-                                                <p>👤 Tên: <span className="font-semibold">Nguyễn Văn A</span></p>
-                                                <p className="text-xs text-muted-foreground mt-2">
-                                                    * Vui lòng thanh toán trước khi đến lấy hàng
-                                                </p>
                                             </div>
                                         </div>
                                     </div>

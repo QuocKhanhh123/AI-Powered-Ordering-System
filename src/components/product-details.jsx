@@ -7,33 +7,7 @@ import { Link, useNavigate } from "react-router-dom"
 import apiClient from "@/lib/api"
 import { toast } from "sonner"
 import authService from "@/lib/authService"
-
-const reviews = [
-    {
-        id: 1,
-        user: "Nguyễn Văn A",
-        rating: 5,
-        comment: "Phở rất ngon, nước dùng trong vắt và thơm. Thịt bò tươi, bánh phở dai ngon. Sẽ đặt lại!",
-        date: "2 ngày trước",
-        avatar: "/assets/images/placeholder.svg?height=40&width=40",
-    },
-    {
-        id: 2,
-        user: "Trần Thị B",
-        rating: 4,
-        comment: "Món ăn ngon, giao hàng nhanh. Chỉ có điều hơi ít thịt so với giá tiền.",
-        date: "1 tuần trước",
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-        id: 3,
-        user: "Lê Văn C",
-        rating: 5,
-        comment: "Tuyệt vời! Đúng vị phở Hà Nội truyền thống. Nhà hàng này rất uy tín.",
-        date: "2 tuần trước",
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-]
+import ReviewSection from "./ReviewSection"
 
 export default function ProductDetail({ productId }) {
     const [product, setProduct] = useState(null)
@@ -303,41 +277,7 @@ export default function ProductDetail({ productId }) {
 
                 {/* Reviews Section */}
                 <div className="mt-12">
-                    <h2 className="text-2xl font-bold mb-6">Đánh giá từ khách hàng</h2>
-                    <div className="space-y-6">
-                        {reviews.map((review) => (
-                            <Card key={review.id}>
-                                <CardContent className="p-6">
-                                    <div className="flex items-start space-x-4">
-                                        <img
-                                            src={review.avatar || "/placeholder.svg"}
-                                            alt={review.user}
-                                            className="w-10 h-10 rounded-full object-cover"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <h4 className="font-semibold">{review.user}</h4>
-                                                <span className="text-sm text-muted-foreground">{review.date}</span>
-                                            </div>
-                                            <div className="flex items-center space-x-2 mb-3">
-                                                <div className="flex">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <Star
-                                                            key={i}
-                                                            className={`h-4 w-4 ${i < review.rating ? "fill-accent text-accent" : "text-muted-foreground"
-                                                                }`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <span className="text-sm font-medium">{review.rating}/5</span>
-                                            </div>
-                                            <p className="text-muted-foreground leading-relaxed">{review.comment}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                    <ReviewSection menuItemId={product.id} />
                 </div>
             </div>
         </div>

@@ -12,6 +12,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["localhost", "https://provinces-unless-uri-entertainment.trycloudflare.com"],
+    allowedHosts: ["localhost", "ours-institutions-amounts-hiv.trycloudflare.com"],
   }
 })
