@@ -244,7 +244,12 @@ export default function AdminOrders() {
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">Đơn hoàn thành</p>
                                     <p className="text-2xl font-bold">
-                                        {statistics.statusDistribution?.find(s => s._id === 'completed')?.count || 0}
+                                        {statistics.statusDistribution?.filter(s =>
+                                            ['confirmed', 'preparing', 'ready', 'delivering', 'completed'].includes(s._id)
+                                        ).reduce((sum, item) => sum + item.count, 0) || 0}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Đã xác nhận & thanh toán
                                     </p>
                                 </div>
                                 <CheckCircle className="h-8 w-8 text-green-600" />

@@ -22,85 +22,52 @@ import {
     Youtube
 } from "lucide-react"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 
 const faqs = [
     {
         id: "faq-1",
         question: "Tôi có thể hủy đơn hàng không?",
-        answer: "Bạn có thể hủy đơn hàng trong vòng 5 phút sau khi đặt. Sau thời gian này, nếu muốn hủy, vui lòng liên hệ với chúng tôi qua hotline hoặc chat để được hỗ trợ. Lưu ý rằng các đơn hàng đã được xác nhận hoặc đang trong quá trình giao hàng sẽ không thể hủy."
+        answer:
+            "Bạn có thể hủy đơn hàng trong vòng 5 phút sau khi đặt. Sau thời gian này, vui lòng liên hệ hotline hoặc chat để được hỗ trợ."
     },
     {
         id: "faq-2",
         question: "Có những hình thức thanh toán nào?",
-        answer: "Chúng tôi chấp nhận nhiều hình thức thanh toán: Tiền mặt khi nhận hàng (COD), Thẻ ATM/Visa/Mastercard, Ví điện tử (Momo, ZaloPay, VNPay), và Chuyển khoản ngân hàng. Tất cả giao dịch đều được mã hóa và bảo mật tuyệt đối."
+        answer:
+            "Chúng tôi hỗ trợ COD, thẻ ATM/Visa/Mastercard, Momo, ZaloPay, VNPay và chuyển khoản ngân hàng."
     },
     {
         id: "faq-3",
         question: "Làm thế nào để theo dõi đơn hàng?",
-        answer: "Sau khi đặt hàng thành công, bạn có thể theo dõi tình trạng đơn hàng tại mục 'Đơn hàng của tôi' trên website hoặc app. Chúng tôi cũng sẽ gửi thông báo qua email và SMS về từng bước của đơn hàng (Đã xác nhận, Đang chuẩn bị, Đang giao, Đã giao)."
+        answer:
+            "Bạn có thể theo dõi đơn hàng tại mục 'Đơn hàng của tôi' hoặc nhận thông báo qua email và SMS."
     },
     {
         id: "faq-4",
         question: "Chính sách đổi trả như thế nào?",
-        answer: "Nếu món ăn có vấn đề về chất lượng, không đúng món, hoặc bị hư hỏng trong quá trình vận chuyển, bạn có thể yêu cầu đổi trả trong vòng 30 phút sau khi nhận hàng. Vui lòng chụp ảnh minh chứng và liên hệ với chúng tôi qua hotline. Chúng tôi sẽ đổi món mới hoặc hoàn tiền 100%."
+        answer:
+            "Yêu cầu đổi trả trong vòng 30 phút nếu có vấn đề về chất lượng. Hoàn tiền hoặc đổi món 100%."
     },
     {
         id: "faq-5",
         question: "Làm thế nào để được tư vấn chọn món?",
-        answer: "Bạn có thể chat trực tuyến với đội ngũ tư vấn của chúng tôi qua nút chat góc phải màn hình, gọi hotline, hoặc để lại thông tin trong form liên hệ bên dưới. Chúng tôi sẵn sàng tư vấn về khẩu phần, độ cay, món ăn phù hợp với khẩu vị của bạn."
+        answer:
+            "Chat trực tuyến, gọi hotline hoặc gửi form liên hệ để được tư vấn nhanh chóng."
     }
 ]
 
 const contactInfo = [
-    {
-        icon: Phone,
-        title: "Hotline",
-        content: "1900-1234",
-        subContent: "Hỗ trợ 24/7",
-        action: "tel:19001234"
-    },
-    {
-        icon: Mail,
-        title: "Email",
-        content: "support@foodiehub.vn",
-        subContent: "Phản hồi trong 24h",
-        action: "mailto:support@foodiehub.vn"
-    },
-    {
-        icon: MapPin,
-        title: "Địa chỉ",
-        content: "123 Nguyễn Huệ, Quận 1",
-        subContent: "TP. Hồ Chí Minh",
-        action: null
-    },
-    {
-        icon: Clock,
-        title: "Giờ làm việc",
-        content: "Thứ 2 - Chủ nhật",
-        subContent: "6:00 AM - 11:00 PM",
-        action: null
-    }
+    { icon: Phone, title: "Hotline", content: "1900-1234", sub: "Hỗ trợ 24/7", link: "tel:19001234" },
+    { icon: Mail, title: "Email", content: "support@foodiehub.vn", sub: "Phản hồi trong 24h", link: "mailto:support@foodiehub.vn" },
+    { icon: MapPin, title: "Địa chỉ", content: "123 Nguyễn Huệ, Quận 1", sub: "TP. Hồ Chí Minh" },
+    { icon: Clock, title: "Giờ làm việc", content: "Thứ 2 - CN", sub: "6:00 - 23:00" }
 ]
 
 const socialLinks = [
-    {
-        icon: Facebook,
-        name: "Facebook",
-        url: "https://facebook.com/foodiehub",
-        color: "text-blue-600 hover:bg-blue-50"
-    },
-    {
-        icon: Instagram,
-        name: "Instagram",
-        url: "https://instagram.com/foodiehub",
-        color: "text-pink-600 hover:bg-pink-50"
-    },
-    {
-        icon: Youtube,
-        name: "Youtube",
-        url: "https://youtube.com/foodiehub",
-        color: "text-red-600 hover:bg-red-50"
-    }
+    { icon: Facebook, url: "https://facebook.com/foodiehub", color: "text-blue-600 hover:bg-blue-50" },
+    { icon: Instagram, url: "https://instagram.com/foodiehub", color: "text-pink-600 hover:bg-pink-50" },
+    { icon: Youtube, url: "https://youtube.com/foodiehub", color: "text-red-600 hover:bg-red-50" }
 ]
 
 export default function Contact() {
@@ -111,36 +78,29 @@ export default function Contact() {
         subject: "",
         message: ""
     })
-
     const [submitting, setSubmitting] = useState(false)
 
     const handleChange = (e) => {
         const { name, value } = e.target
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }))
+        setFormData(prev => ({ ...prev, [name]: value }))
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setSubmitting(true)
 
-        // Validate
         if (!formData.name || !formData.email || !formData.message) {
             toast.error("Vui lòng điền đầy đủ thông tin bắt buộc")
             setSubmitting(false)
             return
         }
 
-        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1500))
 
         toast.success("Gửi tin nhắn thành công!", {
             description: "Chúng tôi sẽ phản hồi trong vòng 24 giờ"
         })
 
-        // Reset form
         setFormData({
             name: "",
             email: "",
@@ -152,154 +112,110 @@ export default function Contact() {
     }
 
     return (
-        <div className="py-8">
+        <section className="py-12 lg:py-16">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="text-center space-y-4 mb-12">
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center space-y-4 mb-14"
+                >
                     <h1 className="text-3xl lg:text-4xl font-bold">
                         Liên Hệ <span className="text-primary">Với Chúng Tôi</span>
                     </h1>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                         Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn
                     </p>
-                </div>
+                </motion.div>
 
-                {/* Contact Info Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    {contactInfo.map((item, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
-                            <CardContent className="p-6 text-center space-y-3">
-                                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <item.icon className="h-6 w-6 text-primary" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">{item.title}</h3>
-                                    {item.action ? (
-                                        <a
-                                            href={item.action}
-                                            className="text-primary hover:underline font-medium"
-                                        >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+                    {contactInfo.map((item, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            viewport={{ once: true }}
+                        >
+                            <Card className="text-center hover:shadow-xl transition-all">
+                                <CardContent className="p-6 space-y-3">
+                                    <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                        <item.icon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <h3 className="font-semibold">{item.title}</h3>
+                                    {item.link ? (
+                                        <a href={item.link} className="text-primary font-medium hover:underline">
                                             {item.content}
                                         </a>
                                     ) : (
                                         <p className="font-medium">{item.content}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground">{item.subContent}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    <p className="text-sm text-muted-foreground">{item.sub}</p>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-                    {/* Contact Form */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <MessageSquare className="h-5 w-5 text-primary" />
-                                <span>Gửi Tin Nhắn</span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">
-                                        Họ và tên <span className="text-destructive">*</span>
-                                    </Label>
-                                    <Input
-                                        id="name"
-                                        name="name"
-                                        placeholder="Nguyễn Văn A"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">
-                                            Email <span className="text-destructive">*</span>
-                                        </Label>
-                                        <Input
-                                            id="email"
-                                            name="email"
-                                            type="email"
-                                            placeholder="email@example.com"
-                                            value={formData.email}
-                                            onChange={handleChange}
-                                            required
-                                        />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-14">
+                    <motion.div
+                        initial={{ opacity: 0, x: -40 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <MessageSquare className="h-5 w-5 text-primary" />
+                                    Gửi Tin Nhắn
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div>
+                                        <Label>Họ và tên *</Label>
+                                        <Input name="name" value={formData.name} onChange={handleChange} />
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="phone">Số điện thoại</Label>
-                                        <Input
-                                            id="phone"
-                                            name="phone"
-                                            type="tel"
-                                            placeholder="0901234567"
-                                            value={formData.phone}
-                                            onChange={handleChange}
-                                        />
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label>Email *</Label>
+                                            <Input name="email" type="email" value={formData.email} onChange={handleChange} />
+                                        </div>
+                                        <div>
+                                            <Label>Số điện thoại</Label>
+                                            <Input name="phone" value={formData.phone} onChange={handleChange} />
+                                        </div>
                                     </div>
-                                </div>
+                                    <div>
+                                        <Label>Tiêu đề</Label>
+                                        <Input name="subject" value={formData.subject} onChange={handleChange} />
+                                    </div>
+                                    <div>
+                                        <Label>Nội dung *</Label>
+                                        <Textarea rows={5} name="message" value={formData.message} onChange={handleChange} />
+                                    </div>
+                                    <Button type="submit" className="w-full" disabled={submitting}>
+                                        {submitting ? "Đang gửi..." : <>
+                                            <Send className="h-4 w-4 mr-2" /> Gửi tin nhắn
+                                        </>}
+                                    </Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="subject">Tiêu đề</Label>
-                                    <Input
-                                        id="subject"
-                                        name="subject"
-                                        placeholder="Câu hỏi về đơn hàng"
-                                        value={formData.subject}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="message">
-                                        Nội dung <span className="text-destructive">*</span>
-                                    </Label>
-                                    <Textarea
-                                        id="message"
-                                        name="message"
-                                        placeholder="Nhập nội dung tin nhắn của bạn..."
-                                        rows={5}
-                                        value={formData.message}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    className="w-full"
-                                    disabled={submitting}
-                                >
-                                    {submitting ? (
-                                        <>Đang gửi...</>
-                                    ) : (
-                                        <>
-                                            <Send className="h-4 w-4 mr-2" />
-                                            Gửi tin nhắn
-                                        </>
-                                    )}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-
-                    {/* Map */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <MapPin className="h-5 w-5 text-primary" />
-                                <span>Vị Trí Của Chúng Tôi</span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {/* Google Maps Embed */}
+                    <motion.div
+                        initial={{ opacity: 0, x: 40 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                    >
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <MapPin className="h-5 w-5 text-primary" />
+                                    Vị Trí Của Chúng Tôi
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
                                 <div className="relative w-full h-[300px] rounded-lg overflow-hidden">
                                     <iframe
                                         title="FoodieHub Location"
@@ -312,92 +228,69 @@ export default function Contact() {
                                         referrerPolicy="no-referrer-when-downgrade"
                                     ></iframe>
                                 </div>
-
-                                {/* Address Details */}
-                                <div className="space-y-3">
-                                    <div>
-                                        <h4 className="font-semibold mb-1">Địa chỉ chi tiết:</h4>
-                                        <p className="text-muted-foreground">
-                                            123 Nguyễn Huệ, Phường Bến Nghé, Quận 1,<br />
-                                            Thành phố Hồ Chí Minh
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-semibold mb-1">Hướng dẫn đi lại:</h4>
-                                        <p className="text-sm text-muted-foreground">
-                                            • Gần Nhà hát Thành phố, đối diện Bitexco<br />
-                                            • Bến xe bus: Số 3, 4, 6, 8, 152<br />
-                                            • Có bãi đỗ xe miễn phí
-                                        </p>
-                                    </div>
-
-                                    <Button variant="outline" className="w-full" asChild>
-                                        <a
-                                            href="https://maps.google.com/?q=123+Nguyen+Hue,+District+1,+Ho+Chi+Minh+City"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            <MapPin className="h-4 w-4 mr-2" />
-                                            Xem trên Google Maps
-                                        </a>
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                <Button variant="outline" className="w-full" asChild>
+                                    <a
+                                        href="https://maps.google.com/?q=123+Nguyen+Hue,+District+1,+Ho+Chi+Minh+City"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <MapPin className="h-4 w-4 mr-2" />
+                                        Xem trên Google Maps
+                                    </a>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 </div>
 
-                {/* FAQs */}
-                <Card className="mb-12">
-                    <CardHeader>
-                        <CardTitle>Câu Hỏi Thường Gặp</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Giải đáp những thắc mắc phổ biến về dịch vụ của chúng tôi
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                            {faqs.map((faq) => (
-                                <AccordionItem key={faq.id} value={faq.id}>
-                                    <AccordionTrigger className="text-left">
-                                        {faq.question}
-                                    </AccordionTrigger>
-                                    <AccordionContent className="text-muted-foreground">
-                                        {faq.answer}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                        </Accordion>
-                    </CardContent>
-                </Card>
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="mb-14"
+                >
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Câu Hỏi Thường Gặp</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <Accordion type="single" collapsible>
+                                {faqs.map(faq => (
+                                    <AccordionItem key={faq.id} value={faq.id}>
+                                        <AccordionTrigger>{faq.question}</AccordionTrigger>
+                                        <AccordionContent>{faq.answer}</AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
-                {/* Social Links */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-center">Kết Nối Với Chúng Tôi</CardTitle>
-                        <p className="text-sm text-muted-foreground text-center">
-                            Theo dõi để cập nhật tin tức và khuyến mãi mới nhất
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex justify-center space-x-4">
-                            {socialLinks.map((social, index) => (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                >
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-center">Kết Nối Với Chúng Tôi</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-center gap-4">
+                            {socialLinks.map((s, i) => (
                                 <a
-                                    key={index}
-                                    href={social.url}
+                                    key={i}
+                                    href={s.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors ${social.color}`}
-                                    aria-label={social.name}
+                                    className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all ${s.color}`}
                                 >
-                                    <social.icon className="h-5 w-5" />
+                                    <s.icon className="h-5 w-5" />
                                 </a>
                             ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </motion.div>
             </div>
-        </div>
+        </section>
     )
 }

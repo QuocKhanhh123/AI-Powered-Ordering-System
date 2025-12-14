@@ -22,10 +22,7 @@ export default function OrderStatus() {
         }
 
         try {
-            // Call backend to query payment status
             const response = await apiClient.get(`/api/payments/zalopay/query/${transactionId}`)
-
-            // Response: { return_code, return_message, amount, zp_trans_id, ... }
             if (response.return_code === 1) {
                 setStatus("success")
                 setOrderData(response)

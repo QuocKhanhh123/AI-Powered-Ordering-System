@@ -12,6 +12,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["localhost", "ours-institutions-amounts-hiv.trycloudflare.com"],
+    allowedHosts: ["localhost", "maritime-locator-gas-earnings.trycloudflare.com"],
   }
 })

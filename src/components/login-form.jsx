@@ -8,6 +8,7 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import authService from "@/lib/authService"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 
 export default function LoginForm() {
     const navigate = useNavigate()
@@ -20,24 +21,15 @@ export default function LoginForm() {
         rememberMe: false,
     })
 
-    // Check if user is already logged in
     useEffect(() => {
         if (authService.isAuthenticated()) {
             const user = authService.getCurrentUser()
-            if (user && user.roles) {
-                if (user.roles.includes('admin')) {
-                    navigate("/admin/dashboard")
-                } else {
-                    navigate("/")
-                }
-            } else {
-                navigate("/")
-            }
+            if (user?.roles?.includes("admin")) navigate("/admin/dashboard")
+            else navigate("/")
         }
 
-        // Load remember me preference
-        const remembered = localStorage.getItem('rememberMe')
-        if (remembered === 'true') {
+        const remembered = localStorage.getItem("rememberMe")
+        if (remembered === "true") {
             setFormData(prev => ({ ...prev, rememberMe: true }))
         }
     }, [])
@@ -45,19 +37,11 @@ export default function LoginForm() {
     const validateForm = () => {
         const newErrors = {}
 
-        // Validate email
-        if (!formData.email) {
-            newErrors.email = "Email là bắt buộc"
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = "Email không hợp lệ"
-        }
+        if (!formData.email) newErrors.email = "Email là bắt buộc"
+        else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email không hợp lệ"
 
-        // Validate password
-        if (!formData.password) {
-            newErrors.password = "Mật khẩu là bắt buộc"
-        } else if (formData.password.length < 6) {
-            newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự"
-        }
+        if (!formData.password) newErrors.password = "Mật khẩu là bắt buộc"
+        else if (formData.password.length < 6) newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự"
 
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
@@ -66,7 +50,6 @@ export default function LoginForm() {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        // Validate form
         if (!validateForm()) {
             toast.error("Vui lòng kiểm tra lại thông tin đăng nhập!")
             return
@@ -76,48 +59,24 @@ export default function LoginForm() {
         setErrors({})
 
         try {
-            // Prepare credentials for API
-            const credentials = {
+            const response = await authService.login({
                 email: formData.email.trim(),
                 password: formData.password,
-            }
+            })
 
-            // Call login API
-            const response = await authService.login(credentials)
+            if (formData.rememberMe) localStorage.setItem("rememberMe", "true")
+            else localStorage.removeItem("rememberMe")
 
-            // Handle remember me
-            if (formData.rememberMe) {
-                localStorage.setItem('rememberMe', 'true')
-            } else {
-                localStorage.removeItem('rememberMe')
-            }
-
-            // Show success message
             toast.success("Đăng nhập thành công!", {
                 description: "Chào mừng bạn quay trở lại FoodieHub"
             })
 
-            // Determine redirect path based on user role
             const user = response.user
             let redirectPath = "/"
+            if (user?.roles?.includes("admin")) redirectPath = "/admin/dashboard"
 
-            if (user && user.roles) {
-                if (user.roles.includes('admin')) {
-                    redirectPath = "/admin/dashboard"
-                } else if (user.roles.includes('customer')) {
-                    redirectPath = "/"
-                }
-            }
-
-            // Navigate after 1 second
-            setTimeout(() => {
-                navigate(redirectPath)
-            }, 1000)
-
+            setTimeout(() => navigate(redirectPath), 900)
         } catch (error) {
-            console.error("Login error:", error)
-
-            // Handle different error cases
             if (error.status === 401) {
                 toast.error("Đăng nhập thất bại", {
                     description: "Email hoặc mật khẩu không chính xác"
@@ -126,17 +85,9 @@ export default function LoginForm() {
                     email: "Email hoặc mật khẩu không chính xác",
                     password: "Email hoặc mật khẩu không chính xác"
                 })
-            } else if (error.status === 400) {
-                toast.error("Lỗi đăng nhập", {
-                    description: error.message || "Thông tin đăng nhập không hợp lệ"
-                })
-            } else if (error.status === 0) {
-                toast.error("Lỗi kết nối", {
-                    description: error.message
-                })
             } else {
                 toast.error("Đăng nhập thất bại", {
-                    description: error.message || "Có lỗi xảy ra. Vui lòng thử lại sau."
+                    description: error.message || "Có lỗi xảy ra"
                 })
             }
         } finally {
@@ -145,96 +96,107 @@ export default function LoginForm() {
     }
 
     const handleInputChange = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }))
+        setFormData(prev => ({ ...prev, [field]: value }))
     }
 
     return (
-        <div className="py-16">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="max-w-md mx-auto">
-                    <div className="text-center mb-8">
+        <section className="py-20">
+            <div className="container mx-auto px-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="max-w-md mx-auto"
+                >
+                    <div className="text-center mb-10">
                         <h1 className="text-3xl font-bold mb-2">Đăng Nhập</h1>
-                        <p className="text-muted-foreground">Chào mừng bạn quay trở lại FoodieHub!</p>
+                        <p className="text-muted-foreground">
+                            Chào mừng bạn quay trở lại FoodieHub
+                        </p>
                     </div>
 
-                    <Card>
+                    <Card className="shadow-xl">
                         <CardHeader>
-                            <CardTitle className="text-center">Đăng nhập vào tài khoản</CardTitle>
+                            <CardTitle className="text-center">
+                                Đăng nhập vào tài khoản
+                            </CardTitle>
                         </CardHeader>
+
                         <CardContent>
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Email */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email *</Label>
-                                    <div className="relative">
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                >
+                                    <Label>Email *</Label>
+                                    <div className="relative mt-2">
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            id="email"
                                             type="email"
-                                            placeholder="Nhập email của bạn"
                                             value={formData.email}
                                             onChange={(e) => handleInputChange("email", e.target.value)}
-                                            className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
-                                            required
+                                            className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
+                                            placeholder="email@example.com"
                                         />
                                     </div>
                                     {errors.email && (
-                                        <p className="text-xs text-red-500">{errors.email}</p>
+                                        <p className="text-xs text-red-500 mt-1">{errors.email}</p>
                                     )}
-                                </div>
+                                </motion.div>
 
-                                {/* Password */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Mật khẩu *</Label>
-                                    <div className="relative">
+                                <motion.div
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                >
+                                    <Label>Mật khẩu *</Label>
+                                    <div className="relative mt-2">
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            id="password"
                                             type={showPassword ? "text" : "password"}
-                                            placeholder="Nhập mật khẩu"
                                             value={formData.password}
                                             onChange={(e) => handleInputChange("password", e.target.value)}
-                                            className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
-                                            required
+                                            className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
+                                            placeholder="••••••••"
                                         />
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                            className="absolute right-0 top-0 h-full"
                                             onClick={() => setShowPassword(!showPassword)}
                                         >
                                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                     {errors.password && (
-                                        <p className="text-xs text-red-500">{errors.password}</p>
+                                        <p className="text-xs text-red-500 mt-1">{errors.password}</p>
                                     )}
-                                </div>
+                                </motion.div>
 
-                                {/* Remember me & Forgot password */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-2">
                                         <Checkbox
-                                            id="rememberMe"
                                             checked={formData.rememberMe}
                                             onCheckedChange={(checked) => handleInputChange("rememberMe", checked)}
                                         />
-                                        <Label htmlFor="rememberMe" className="text-sm cursor-pointer">
-                                            Ghi nhớ đăng nhập
-                                        </Label>
+                                        <Label className="text-sm">Ghi nhớ đăng nhập</Label>
                                     </div>
                                     <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                                         Quên mật khẩu?
                                     </Link>
                                 </div>
 
-                                {/* Submit */}
-                                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                                    {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
-                                </Button>
+                                <motion.div whileTap={{ scale: 0.98 }}>
+                                    <Button
+                                        type="submit"
+                                        className="w-full"
+                                        size="lg"
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
+                                    </Button>
+                                </motion.div>
 
-                                {/* Divider */}
                                 <div className="relative my-6">
                                     <div className="absolute inset-0 flex items-center">
                                         <div className="w-full border-t" />
@@ -244,9 +206,8 @@ export default function LoginForm() {
                                     </div>
                                 </div>
 
-                                {/* Social Login */}
                                 <div className="space-y-3">
-                                    <Button variant="outline" className="w-full bg-transparent" type="button">
+                                    <Button variant="outline" className="w-full bg-transparent">
                                         <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                                             <path
                                                 fill="currentColor"
@@ -267,7 +228,7 @@ export default function LoginForm() {
                                         </svg>
                                         Đăng nhập với Google
                                     </Button>
-                                    <Button variant="outline" className="w-full bg-transparent" type="button">
+                                    <Button variant="outline" className="w-full bg-transparent">
                                         <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                                         </svg>
@@ -275,11 +236,10 @@ export default function LoginForm() {
                                     </Button>
                                 </div>
 
-                                {/* Register link */}
                                 <div className="text-center pt-4">
                                     <p className="text-sm text-muted-foreground">
                                         Chưa có tài khoản?{" "}
-                                        <Link to="/register" className="text-primary hover:underline font-medium">
+                                        <Link to="/register" className="text-primary font-medium hover:underline">
                                             Đăng ký ngay
                                         </Link>
                                     </p>
@@ -287,8 +247,8 @@ export default function LoginForm() {
                             </form>
                         </CardContent>
                     </Card>
-                </div>
+                </motion.div>
             </div>
-        </div>
+        </section>
     )
 }
