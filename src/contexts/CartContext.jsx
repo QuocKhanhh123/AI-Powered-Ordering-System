@@ -36,11 +36,18 @@ export const CartProvider = ({ children }) => {
 
     // Thêm sản phẩm vào giỏ hàng
     const addToCart = (product, quantity = 1, note = '') => {
+        console.log('CartContext - addToCart called with:', { product, quantity, note });
+        console.log('CartContext - Current cartItems:', cartItems);
+
         // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
         const existingItemIndex = cartItems.findIndex(item => item.id === product.id)
         const isUpdate = existingItemIndex > -1
 
+        console.log('CartContext - existingItemIndex:', existingItemIndex, 'isUpdate:', isUpdate);
+
         setCartItems(prevItems => {
+            console.log('CartContext - prevItems:', prevItems);
+
             if (isUpdate) {
                 // Nếu đã có, tăng số lượng
                 const updatedItems = [...prevItems]
@@ -49,6 +56,7 @@ export const CartProvider = ({ children }) => {
                     quantity: updatedItems[existingItemIndex].quantity + quantity,
                     note: note || updatedItems[existingItemIndex].note
                 }
+                console.log('CartContext - Updated items:', updatedItems);
                 return updatedItems
             } else {
                 // Nếu chưa có, thêm mới
@@ -61,7 +69,10 @@ export const CartProvider = ({ children }) => {
                     note: note,
                     category: product.category
                 }
-                return [...prevItems, newItem]
+                console.log('CartContext - New item created:', newItem);
+                const newItems = [...prevItems, newItem];
+                console.log('CartContext - New items array:', newItems);
+                return newItems;
             }
         })
         const message = isUpdate
@@ -77,6 +88,8 @@ export const CartProvider = ({ children }) => {
         toastIdRef.current = toast.success(message, {
             duration: 2000,
         })
+
+        console.log('CartContext - Toast shown:', message);
     }
 
     // Cập nhật số lượng sản phẩm

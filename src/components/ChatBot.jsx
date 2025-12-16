@@ -5,6 +5,8 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { ScrollArea } from './ui/scroll-area';
+import apiClient from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 
 export default function ChatBot() {
     const [isOpen, setIsOpen] = useState(false);
@@ -12,15 +14,17 @@ export default function ChatBot() {
     const [messages, setMessages] = useState([
         {
             id: 1,
-            text: 'Xin chào! Tôi là trợ lý ảo của Order System. Tôi có thể giúp gì cho bạn?',
+            text: 'Xin chào! Mình là trợ lý AI của FoodieHub. Bạn muốn tìm món gì ạ? 😊',
             sender: 'bot',
             timestamp: new Date()
         }
     ]);
     const [inputMessage, setInputMessage] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [sessionId, setSessionId] = useState(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const navigate = useNavigate();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,31 +54,57 @@ export default function ChatBot() {
         setIsMinimized(false);
     };
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!inputMessage.trim()) return;
 
         const newMessage = {
-            id: messages.length + 1,
+            id: Date.now(),
             text: inputMessage,
             sender: 'user',
             timestamp: new Date()
         };
 
-        setMessages([...messages, newMessage]);
+        setMessages(prev => [...prev, newMessage]);
         setInputMessage('');
-
-        // Simulate bot typing
         setIsTyping(true);
-        setTimeout(() => {
-            const botResponse = {
-                id: messages.length + 2,
-                text: 'Cảm ơn bạn đã liên hệ! Đây là phản hồi mẫu. Tính năng AI chatbot sẽ được tích hợp sau.',
+
+        try {
+            const response = await apiClient.post('/api/chatbot/send', {
+                message: inputMessage,
+                sessionId: sessionId
+            });
+
+            if (response.success !== false) {
+                // Update session ID
+                if (response.sessionId && !sessionId) {
+                    setSessionId(response.sessionId);
+                }
+
+                // Add bot reply
+                const botMessage = {
+                    id: Date.now() + 1,
+                    text: response.reply || 'Xin lỗi, mình không hiểu câu hỏi của bạn. Bạn có thể nói rõ hơn được không?',
+                    sender: 'bot',
+                    timestamp: new Date(),
+                    products: response.products || []
+                };
+
+                setMessages(prev => [...prev, botMessage]);
+            } else {
+                throw new Error(response.error || 'Không thể kết nối đến server');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            const errorMessage = {
+                id: Date.now() + 1,
+                text: 'Xin lỗi, có lỗi xảy ra khi kết nối đến server. Vui lòng thử lại sau.',
                 sender: 'bot',
                 timestamp: new Date()
             };
-            setMessages(prev => [...prev, botResponse]);
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
             setIsTyping(false);
-        }, 1000);
+        }
     };
 
     const handleKeyPress = (e) => {
@@ -86,6 +116,24 @@ export default function ChatBot() {
 
     const formatTime = (date) => {
         return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatPrice = (price) => {
+        return new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND'
+        }).format(price);
+    };
+
+    const formatMessageText = (text) => {
+        // Convert **text** to bold
+        const formattedText = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        return formattedText;
+    };
+
+    const handleViewProduct = (product) => {
+        navigate(`/product/${product.id}`);
+        setIsOpen(false);
     };
 
     return (
@@ -104,8 +152,8 @@ export default function ChatBot() {
 
             {/* Chat Window - Fixed position */}
             {isOpen && (
-                <Card className={`fixed bottom-6 right-6 shadow-2xl z-50 transition-all duration-300 ${isMinimized ? 'w-80 h-16' : 'w-96 h-[600px]'
-                    } flex flex-col`}>
+                <Card className={`fixed bottom-6 right-6 shadow-2xl z-50 transition-all duration-300 flex flex-col ${isMinimized ? 'w-80 h-16' : 'w-[450px] h-[650px]'
+                    }`}>
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b bg-primary text-primary-foreground rounded-t-lg">
                         <div className="flex items-center gap-3">
@@ -128,6 +176,7 @@ export default function ChatBot() {
                                 size="icon"
                                 className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
                                 onClick={handleMinimize}
+                                title="Thu gọn"
                             >
                                 <Minimize2 className="h-4 w-4" />
                             </Button>
@@ -136,6 +185,7 @@ export default function ChatBot() {
                                 size="icon"
                                 className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground"
                                 onClick={handleClose}
+                                title="Đóng"
                             >
                                 <X className="h-4 w-4" />
                             </Button>
@@ -148,38 +198,100 @@ export default function ChatBot() {
                             <ScrollArea className="flex-1 p-4">
                                 <div className="space-y-4">
                                     {messages.map((message) => (
-                                        <div
-                                            key={message.id}
-                                            className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-                                                }`}
-                                        >
-                                            <Avatar className="h-8 w-8 flex-shrink-0">
-                                                <AvatarFallback className={
-                                                    message.sender === 'bot'
+                                        <div key={message.id}>
+                                            <div
+                                                className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
+                                                    }`}
+                                            >
+                                                <Avatar className="h-8 w-8 flex-shrink-0">
+                                                    <AvatarFallback className={
+                                                        message.sender === 'bot'
+                                                            ? 'bg-primary text-primary-foreground'
+                                                            : 'bg-muted'
+                                                    }>
+                                                        {message.sender === 'bot' ? (
+                                                            <Bot className="h-4 w-4" />
+                                                        ) : (
+                                                            <User className="h-4 w-4" />
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'
+                                                    } max-w-[70%]`}>
+                                                    <div className={`rounded-2xl px-4 py-2 ${message.sender === 'user'
                                                         ? 'bg-primary text-primary-foreground'
                                                         : 'bg-muted'
-                                                }>
-                                                    {message.sender === 'bot' ? (
-                                                        <Bot className="h-4 w-4" />
-                                                    ) : (
-                                                        <User className="h-4 w-4" />
-                                                    )}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'
-                                                } max-w-[70%]`}>
-                                                <div className={`rounded-2xl px-4 py-2 ${message.sender === 'user'
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted'
-                                                    }`}>
-                                                    <p className="text-sm whitespace-pre-wrap break-words">
-                                                        {message.text}
-                                                    </p>
+                                                        }`}>
+                                                        <p
+                                                            className="text-sm whitespace-pre-wrap break-words"
+                                                            dangerouslySetInnerHTML={{ __html: formatMessageText(message.text) }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground mt-1">
+                                                        {formatTime(message.timestamp)}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-muted-foreground mt-1">
-                                                    {formatTime(message.timestamp)}
-                                                </span>
                                             </div>
+
+                                            {/* Product Cards */}
+                                            {message.products && message.products.length > 0 && (
+                                                <div className="mt-3 space-y-2 ml-11">
+                                                    {message.products.map((product) => (
+                                                        <Card
+                                                            key={product.id}
+                                                            className="p-3 hover:shadow-md transition-shadow cursor-pointer"
+                                                        >
+                                                            <div className="flex gap-3">
+                                                                <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
+                                                                    <img
+                                                                        src={product.thumbnail || 'https://via.placeholder.com/80'}
+                                                                        alt={product.name}
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={(e) => {
+                                                                            e.target.src = 'https://via.placeholder.com/80?text=No+Image';
+                                                                        }}
+                                                                    />
+                                                                    {product.hasDiscount && (
+                                                                        <span className="absolute top-1 left-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">
+                                                                            -SALE
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="font-semibold text-sm line-clamp-1 mb-1">
+                                                                        {product.name}
+                                                                    </h4>
+                                                                    {product.description && (
+                                                                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                                                                            {product.description}
+                                                                        </p>
+                                                                    )}
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <span className={`font-bold text-sm ${product.hasDiscount ? 'text-red-500' : 'text-primary'
+                                                                            }`}>
+                                                                            {formatPrice(product.currentPrice || product.price)}
+                                                                        </span>
+                                                                        {product.hasDiscount && product.price !== product.currentPrice && (
+                                                                            <span className="text-xs text-muted-foreground line-through">
+                                                                                {formatPrice(product.price)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="h-7 text-xs w-full"
+                                                                            onClick={() => handleViewProduct(product)}
+                                                                        >
+                                                                            Xem chi tiết
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
 

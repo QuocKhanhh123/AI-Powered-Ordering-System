@@ -12,6 +12,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["localhost", "maritime-locator-gas-earnings.trycloudflare.com"],
+    allowedHosts: ["localhost", "annually-accounting-viewpicture-dos.trycloudflare.com"],
   }
 })
